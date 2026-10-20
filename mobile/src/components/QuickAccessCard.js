@@ -12,9 +12,6 @@ export default function QuickAccessCard({ item, onPress }) {
         <View style={[styles.iconBox, { backgroundColor: item.bg }]}>
           <Ionicons name={item.icon} size={26} color={item.color} />
         </View>
-        <View style={[styles.arrowBox, { backgroundColor: item.bg }]}>
-          <Ionicons name="arrow-forward" size={16} color={item.color} />
-        </View>
       </View>
       <Text style={styles.title}>{item.title}</Text>
       <Text style={styles.subtitle}>{item.subtitle}</Text>
@@ -49,13 +46,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

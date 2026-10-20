@@ -8,6 +8,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AppointmentsScreen from './src/screens/AppointmentsScreen';
+import QueueScreen from './src/screens/QueueScreen';
+import HealthRecordsScreen from './src/screens/HealthRecordsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -96,8 +98,15 @@ export default function App() {
                 <ProfileScreen user={user} onUserChange={setUser} onLogout={logOut} />
               ) : activeTab === 'Appointments' ? (
                 <AppointmentsScreen />
+              ) : activeTab === 'Queue' ? (
+                <QueueScreen />
+              ) : activeTab === 'Records' ? (
+                <HealthRecordsScreen onBack={() => setActiveTab('Home')} />
               ) : (
-                <HomeScreen userName={user.name ? user.name.trim().split(' ')[0] : undefined} />
+                <HomeScreen
+                  userName={user.name ? user.name.trim().split(' ')[0] : undefined}
+                  onNavigate={setActiveTab}
+                />
               )}
             </View>
             <BottomTabBar activeTab={activeTab} onChange={setActiveTab} />

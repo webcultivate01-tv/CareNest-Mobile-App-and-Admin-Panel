@@ -5,17 +5,17 @@
 // color = icon color, bg = light background color behind the icon.
 export const quickAccess = [
   {
-    id: 'find',
-    title: 'Find a Doctor',
-    subtitle: 'Search our doctors',
-    icon: 'search',
+    id: 'book',
+    title: 'Book Appointment',
+    subtitle: 'Choose date & time',
+    icon: 'calendar-outline',
     color: '#1E9E5A',
     bg: '#DDF3E6',
   },
   {
     id: 'appointments',
     title: 'My Appointments',
-    subtitle: 'View & manage',
+    subtitle: 'View your visits',
     icon: 'calendar',
     color: '#2F8FE5',
     bg: '#DFEEFC',
