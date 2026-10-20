@@ -97,3 +97,19 @@ export const uploadPhoto = async (token, image) => {
 };
 
 export const deletePhoto = (token) => request('/api/user/photo', { method: 'DELETE', token });
+
+// ---- doctors + booking (only active doctors are returned) ----
+
+// [{ id, name, specialty, qualifications, experienceYears, fee, photo, freeToday, schedule }]
+export const getDoctors = (token) => request('/api/user/doctors', { token });
+
+// { doctor, days: [{ date, freeSlots }] }
+export const getDoctorDays = (token, doctorId) => request(`/api/user/doctordays/${doctorId}`, { token });
+
+// { doctor, date, slots: [{ time, startsAt }] }
+export const getDoctorSlots = (token, doctorId, date) =>
+  request(`/api/user/doctorslots/${doctorId}?date=${date}`, { token });
+
+// scheduledAt = the startsAt of a slot
+export const bookAppointment = (token, doctorId, scheduledAt, notes) =>
+  request('/api/user/bookappointment', { method: 'POST', token, body: { doctorId, scheduledAt, notes } });

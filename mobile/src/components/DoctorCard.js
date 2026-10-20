@@ -1,39 +1,62 @@
-// One doctor card: photo, name, rating, availability and working hours.
+// One doctor card: photo, name, specialty, experience, fee, today's availability and hours.
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-// doctor  = one object from the doctors list in homeData.js
+// "09:00" -> "9:00 AM"
+export const formatTime = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+// today's working hours from the weekly shifts, e.g. "9:00 AM - 5:00 PM" (null = day off)
+export const todayHours = (schedule = []) => {
+  const shifts = schedule.filter((r) => r.weekday === new Date().getDay());
+  if (!shifts.length) return null;
+  const starts = shifts.map((s) => s.start).sort();
+  const ends = shifts.map((s) => s.end).sort();
+  return `${formatTime(starts[0])} - ${formatTime(ends[ends.length - 1])}`;
+};
+
+// doctor  = one doctor from GET /api/user/doctors
 // onPress = function we call when the card is tapped
 export default function DoctorCard({ doctor, onPress }) {
+  const hours = todayHours(doctor.schedule);
+  const free = doctor.freeToday > 0;
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      {/* Top part: photo + name + specialty + rating */}
       <View style={styles.top}>
-        <Image source={{ uri: doctor.avatar }} style={styles.avatar} />
+        {doctor.photo ? (
+          <Image source={{ uri: doctor.photo }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarEmpty]}>
+            <Ionicons name="person" size={30} color={colors.primary} />
+          </View>
+        )}
         <View style={styles.info}>
           <Text style={styles.name}>{doctor.name}</Text>
           <Text style={styles.specialty}>{doctor.specialty}</Text>
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={15} color={colors.star} />
-            <Text style={styles.rating}>{doctor.rating}</Text>
-            <Text style={styles.reviews}>({doctor.reviews} reviews)</Text>
+            <Ionicons name="briefcase-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.reviews}>{doctor.experienceYears} yrs experience</Text>
+            <Text style={styles.rating}>  ₹{doctor.fee}</Text>
           </View>
         </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </View>
 
-      {/* Thin line between the two parts */}
       <View style={styles.divider} />
 
-      {/* Bottom part: availability badge + working hours */}
       <View style={styles.bottom}>
-        <View style={styles.badge}>
-          <View style={styles.badgeDot} />
-          <Text style={styles.badgeText}>{doctor.availability}</Text>
+        <View style={[styles.badge, !free && styles.badgeOff]}>
+          <View style={[styles.badgeDot, !free && styles.badgeDotOff]} />
+          <Text style={[styles.badgeText, !free && styles.badgeTextOff]}>
+            {free ? `${doctor.freeToday} slots today` : 'No slots today'}
+          </Text>
         </View>
         <View style={styles.hoursRow}>
           <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-          <Text style={styles.hours}>{doctor.hours}</Text>
+          <Text style={styles.hours}>{hours || 'Day off'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -65,6 +88,19 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: colors.primaryLight,
+  },
+  avatarEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeOff: {
+    backgroundColor: '#F3F4F6',
+  },
+  badgeDotOff: {
+    backgroundColor: colors.textMuted,
+  },
+  badgeTextOff: {
+    color: colors.textMuted,
   },
   info: {
     flex: 1,

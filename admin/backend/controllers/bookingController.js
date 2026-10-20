@@ -1,7 +1,7 @@
 import { addDays, clinicToday, getDaySlots, isValidDateString, saveAppointment } from "../config/booking.js";
 import { photoUrl } from "../config/photos.js";
 import { findAppointmentsByPatient } from "../model/appointmentModel.js";
-import { findDoctorById, findDoctors } from "../model/doctorModel.js";
+import { findAllSchedules, findDoctorById, findDoctors } from "../model/doctorModel.js";
 
 // Patient (mobile app) side of booking. Patients can only read doctors and book / list
 // their own appointments; nothing here changes a doctor, schedule or fee.
@@ -9,7 +9,8 @@ import { findDoctorById, findDoctors } from "../model/doctorModel.js";
 const BOOKING_DAYS = 14; // how many days ahead a patient can book
 
 // only what the app needs; fee is the doctor's current fee (the appointment keeps its own copy)
-const toBookableDoctor = (doctor, req) => ({
+const toBookableDoctor = (doctor, req, extra = {}) => ({
+  ...extra,
   id: doctor.id,
   name: doctor.name,
   specialty: doctor.specialty,
@@ -33,7 +34,18 @@ const findBookableDoctor = async (doctorId) => {
 export const getBookableDoctors = async (req, res) => {
   try {
     const doctors = (await findDoctors(req.query.search)).filter((d) => d.isAvailable);
-    return res.status(200).json(doctors.map((d) => toBookableDoctor(d, req)));
+    const schedules = await findAllSchedules();
+    const today = clinicToday();
+    // live: free slots left today + the weekly shifts (the app shows today's hours)
+    const list = await Promise.all(
+      doctors.map(async (d) =>
+        toBookableDoctor(d, req, {
+          freeToday: (await getDaySlots(d, today)).length,
+          schedule: (schedules[d.id] || []).filter((r) => r.kind === "shift"),
+        })
+      )
+    );
+    return res.status(200).json(list);
   } catch (error) {
     return res.status(500).json({ message: `GetBookableDoctors error ${error.message}` });
   }

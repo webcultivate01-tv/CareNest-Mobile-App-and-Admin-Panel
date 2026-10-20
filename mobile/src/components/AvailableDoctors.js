@@ -1,21 +1,49 @@
-// The "Available Doctors" section: one card for each doctor.
-import { View } from 'react-native';
+// The "Available Doctors" section: live list from the server. Tap a doctor to open the booking form.
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import DoctorCard from './DoctorCard';
+import DoctorModal from './DoctorModal';
 import SectionHeader from './SectionHeader';
-import { doctors } from '../data/homeData';
+import { colors } from '../theme/colors';
+import { getDoctors, getToken } from '../api';
 
-// onDoctorPress = function we call with the tapped doctor (optional)
-export default function AvailableDoctors({ onDoctorPress = () => {} }) {
+const REFRESH_MS = 30000; // pick up admin changes (new doctor, leave, status) without a restart
+
+export default function AvailableDoctors() {
+  const [doctors, setDoctors] = useState(null); // null = first load
+  const [error, setError] = useState('');
+  const [selected, setSelected] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setDoctors(await getDoctors(await getToken()));
+      setError('');
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+
   return (
     <View>
-      <SectionHeader title="Available Doctors" />
-      {doctors.map((doctor) => (
-        <DoctorCard
-          key={doctor.id}
-          doctor={doctor}
-          onPress={() => onDoctorPress(doctor)}
-        />
+      <SectionHeader title="Available Doctors" onSeeAll={load} />
+      {doctors === null && !error && <ActivityIndicator color={colors.primary} style={styles.gap} />}
+      {error && doctors === null ? <Text style={styles.message}>{error}</Text> : null}
+      {doctors && doctors.length === 0 && <Text style={styles.message}>No doctors are available right now.</Text>}
+      {doctors?.map((doctor) => (
+        <DoctorCard key={doctor.id} doctor={doctor} onPress={() => setSelected(doctor)} />
       ))}
+      <DoctorModal doctor={selected} onClose={() => setSelected(null)} onBooked={load} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  gap: { marginVertical: 24 },
+  message: { textAlign: 'center', color: colors.textMuted, marginVertical: 24 },
+});
