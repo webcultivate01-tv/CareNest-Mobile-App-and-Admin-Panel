@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import AppointmentsScreen from './src/screens/AppointmentsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -93,6 +94,8 @@ export default function App() {
             <View style={styles.body}>
               {activeTab === 'Profile' ? (
                 <ProfileScreen user={user} onUserChange={setUser} onLogout={logOut} />
+              ) : activeTab === 'Appointments' ? (
+                <AppointmentsScreen />
               ) : (
                 <HomeScreen userName={user.name ? user.name.trim().split(' ')[0] : undefined} />
               )}

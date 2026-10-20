@@ -36,14 +36,23 @@ export const getBookableDoctors = async (req, res) => {
     const doctors = (await findDoctors(req.query.search)).filter((d) => d.isAvailable);
     const schedules = await findAllSchedules();
     const today = clinicToday();
-    // live: free slots left today + the weekly shifts (the app shows today's hours)
+    // live: free slots left today + the weekly shifts (the app shows today's hours).
+    // nextFreeDate = first day in the booking window with a free slot (null = none at all),
+    // so the app can say "Next available ..." instead of "No slots" once today is over.
     const list = await Promise.all(
-      doctors.map(async (d) =>
-        toBookableDoctor(d, req, {
-          freeToday: (await getDaySlots(d, today)).length,
+      doctors.map(async (d) => {
+        const freeToday = (await getDaySlots(d, today)).length;
+        let nextFreeDate = freeToday > 0 ? today : null;
+        for (let i = 1; !nextFreeDate && i < BOOKING_DAYS; i++) {
+          const date = addDays(today, i);
+          if ((await getDaySlots(d, date)).length > 0) nextFreeDate = date;
+        }
+        return toBookableDoctor(d, req, {
+          freeToday,
+          nextFreeDate,
           schedule: (schedules[d.id] || []).filter((r) => r.kind === "shift"),
-        })
-      )
+        });
+      })
     );
     return res.status(200).json(list);
   } catch (error) {

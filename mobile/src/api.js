@@ -113,3 +113,6 @@ export const getDoctorSlots = (token, doctorId, date) =>
 // scheduledAt = the startsAt of a slot
 export const bookAppointment = (token, doctorId, scheduledAt, notes) =>
   request('/api/user/bookappointment', { method: 'POST', token, body: { doctorId, scheduledAt, notes } });
+
+// [{ id, doctorName, doctorSpecialty, doctorPhoto, scheduledAt, status, notes, fee }] newest first
+export const getMyAppointments = (token) => request('/api/user/myappointments', { token });

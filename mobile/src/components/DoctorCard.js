@@ -23,6 +23,17 @@ export const todayHours = (schedule = []) => {
 export default function DoctorCard({ doctor, onPress }) {
   const hours = todayHours(doctor.schedule);
   const free = doctor.freeToday > 0;
+  // today is over / full but a later day is open: still show the doctor as available
+  const upcoming = !free && !!doctor.nextFreeDate;
+  const badgeText = free
+    ? `${doctor.freeToday} slots today`
+    : upcoming
+      ? `Next: ${new Date(`${doctor.nextFreeDate}T00:00:00`).toLocaleDateString('en-US', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        })}`
+      : 'No slots available';
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.top}>
@@ -48,11 +59,9 @@ export default function DoctorCard({ doctor, onPress }) {
       <View style={styles.divider} />
 
       <View style={styles.bottom}>
-        <View style={[styles.badge, !free && styles.badgeOff]}>
-          <View style={[styles.badgeDot, !free && styles.badgeDotOff]} />
-          <Text style={[styles.badgeText, !free && styles.badgeTextOff]}>
-            {free ? `${doctor.freeToday} slots today` : 'No slots today'}
-          </Text>
+        <View style={[styles.badge, !free && !upcoming && styles.badgeOff]}>
+          <View style={[styles.badgeDot, !free && !upcoming && styles.badgeDotOff]} />
+          <Text style={[styles.badgeText, !free && !upcoming && styles.badgeTextOff]}>{badgeText}</Text>
         </View>
         <View style={styles.hoursRow}>
           <Ionicons name="time-outline" size={15} color={colors.textMuted} />
