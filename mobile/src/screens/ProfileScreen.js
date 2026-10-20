@@ -40,17 +40,51 @@ function isValidDob(text) {
   );
 }
 
-// One row in the details list. Skipped if there is no value.
-function InfoRow({ icon, label, value }) {
+const comingSoon = (title) => () => Alert.alert(title, 'This feature is coming soon.');
+
+// Round icon used at the start of every row.
+function IconCircle({ icon, danger }) {
+  return (
+    <View style={[styles.iconCircle, danger && styles.iconCircleDanger]}>
+      <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.primary} />
+    </View>
+  );
+}
+
+// One row in the Personal Information card. Skipped if there is no value.
+function InfoRow({ icon, label, value, onPress, last }) {
   if (!value) return null;
   return (
-    <View style={styles.row}>
-      <Ionicons name={icon} size={20} color={colors.primary} />
+    <TouchableOpacity
+      style={[styles.row, !last && styles.rowDivider]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <IconCircle icon={icon} />
       <View style={styles.rowText}>
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowValue}>{value}</Text>
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+// One row in the settings / support cards (title + subtitle).
+function MenuRow({ icon, title, subtitle, onPress, danger, last }) {
+  return (
+    <TouchableOpacity
+      style={[styles.row, !last && styles.rowDivider]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <IconCircle icon={icon} danger={danger} />
+      <View style={styles.rowText}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        <Text style={styles.menuSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 }
 
@@ -128,32 +162,72 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <TouchableOpacity onPress={pickPhoto} activeOpacity={0.85} disabled={photoBusy}>
-        <View style={styles.avatar}>
-          {user.photo ? (
-            <Image source={{ uri: user.photo }} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarText}>{name.trim().charAt(0).toUpperCase()}</Text>
-          )}
-          {photoBusy && (
-            <View style={styles.avatarBusy}>
-              <ActivityIndicator color="#fff" />
-            </View>
-          )}
-        </View>
-        <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={14} color="#fff" />
-        </View>
-      </TouchableOpacity>
-      {user.photo && !photoBusy ? (
-        <TouchableOpacity onPress={removePhoto} hitSlop={8} style={styles.removePhoto}>
-          <Text style={styles.removePhotoText}>Remove photo</Text>
-        </TouchableOpacity>
-      ) : null}
-      <Text style={styles.name}>{name}</Text>
+      <Text style={styles.title}>Profile</Text>
 
-      {editing ? (
-        <View style={styles.card}>
+      {/* Header card: photo, name, role, edit button */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={pickPhoto}
+          onLongPress={user.photo ? removePhoto : undefined}
+          activeOpacity={0.85}
+          disabled={photoBusy}
+        >
+          <View style={styles.avatar}>
+            {user.photo ? (
+              <Image source={{ uri: user.photo }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{name.trim().charAt(0).toUpperCase()}</Text>
+            )}
+            {photoBusy && (
+              <View style={styles.avatarBusy}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            )}
+          </View>
+          <View style={styles.cameraBadge}>
+            <Ionicons name="camera" size={14} color="#fff" />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.role}>Patient</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.editPill}
+              onPress={editing ? () => setEditing(false) : startEdit}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={editing ? 'close-outline' : 'create-outline'}
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.editPillText}>{editing ? 'Cancel' : 'Edit Profile'}</Text>
+            </TouchableOpacity>
+            {user.photo && !photoBusy ? (
+              <TouchableOpacity onPress={removePhoto} hitSlop={8}>
+                <Text style={styles.removePhotoText}>Remove photo</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      {/* Personal information */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Personal Information</Text>
+          {!editing && (
+            <TouchableOpacity style={styles.cardEdit} onPress={startEdit} hitSlop={8}>
+              <Ionicons name="create-outline" size={18} color={colors.primary} />
+              <Text style={styles.cardEditText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {editing ? (
           <View style={styles.form}>
             <AuthInput
               label="Full name"
@@ -195,75 +269,169 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      ) : (
-        <>
-          <View style={styles.card}>
-            <InfoRow icon="call-outline" label="Mobile number" value={user.mobile} />
-            <InfoRow icon="calendar-outline" label="Date of birth" value={user.dob} />
-            <InfoRow icon="mail-outline" label="Email" value={user.email} />
-            <InfoRow icon="person-outline" label="Signed in as" value={user.email || user.mobile} />
-          </View>
-          <TouchableOpacity style={styles.edit} onPress={startEdit} activeOpacity={0.85}>
-            <Ionicons name="create-outline" size={20} color={colors.primary} />
-            <Text style={styles.editText}>Edit profile</Text>
-          </TouchableOpacity>
-        </>
-      )}
+        ) : (
+          <>
+            <InfoRow icon="call-outline" label="Mobile Number" value={user.mobile} onPress={startEdit} />
+            <InfoRow icon="calendar-outline" label="Date of Birth" value={user.dob} onPress={startEdit} />
+            <InfoRow
+              icon="mail-outline"
+              label="Email Address"
+              value={user.email}
+              onPress={() => Alert.alert('Email', 'Email cannot be changed.')}
+              last
+            />
+          </>
+        )}
+      </View>
+
+      {/* Account settings */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Account Settings</Text>
+        <MenuRow
+          icon="notifications-outline"
+          title="Notifications"
+          subtitle="Appointment reminders and updates"
+          onPress={comingSoon('Notifications')}
+        />
+        <MenuRow
+          icon="lock-closed-outline"
+          title="Security & Privacy"
+          subtitle="Change password, manage data"
+          onPress={comingSoon('Security & Privacy')}
+          last
+        />
+      </View>
+
+      {/* Support */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Support & Information</Text>
+        <MenuRow
+          icon="help-circle-outline"
+          title="Help & Support"
+          subtitle="Get help or contact the clinic"
+          onPress={comingSoon('Help & Support')}
+        />
+        <MenuRow
+          icon="document-text-outline"
+          title="Terms & Privacy Policy"
+          subtitle="Read our terms and privacy policy"
+          onPress={comingSoon('Terms & Privacy Policy')}
+        />
+        <MenuRow
+          icon="trash-outline"
+          title="Delete Account"
+          subtitle="Permanently delete your account"
+          onPress={comingSoon('Delete Account')}
+          danger
+          last
+        />
+      </View>
 
       <TouchableOpacity style={styles.logout} onPress={onLogout} activeOpacity={0.85}>
-        <Ionicons name="log-out-outline" size={22} color={colors.danger} />
-        <Text style={styles.logoutText}>Log out</Text>
+        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, alignItems: 'center' },
+  content: { padding: 16, paddingBottom: 24 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 14 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+  },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
     overflow: 'hidden',
   },
-  avatarImage: { width: 84, height: 84 },
+  avatarImage: { width: 92, height: 92 },
   avatarBusy: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontSize: 36, fontWeight: '800' },
+  avatarText: { color: '#fff', fontSize: 38, fontWeight: '800' },
   cameraBadge: {
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.primaryDark,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removePhoto: { marginTop: 8 },
-  removePhotoText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
-  name: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 12, marginBottom: 20 },
+  headerText: { flex: 1 },
+  name: { fontSize: 24, fontWeight: '800', color: colors.text },
+  role: { fontSize: 16, color: colors.textMuted, marginTop: 2 },
+  headerActions: { marginTop: 10, alignItems: 'flex-start', gap: 8 },
+  editPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#CDEBD9',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  editPillText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
+  removePhotoText: { color: colors.danger, fontSize: 12, fontWeight: '600' },
+
   card: {
-    alignSelf: 'stretch',
     backgroundColor: '#fff',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 2,
+    marginBottom: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  form: { paddingVertical: 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 2 },
+  cardEdit: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardEditText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconCircleDanger: { backgroundColor: '#FDECEC' },
+  rowText: { flex: 1 },
+  rowLabel: { fontSize: 12, color: colors.textMuted },
+  rowValue: { fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 1 },
+  menuTitle: { fontSize: 14, color: colors.text, fontWeight: '700' },
+  menuSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+
+  form: { paddingVertical: 12 },
   hint: { fontSize: 12, color: colors.textMuted, marginBottom: 12 },
   buttons: { flexDirection: 'row', gap: 12 },
   button: { flex: 1, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -271,39 +439,21 @@ const styles = StyleSheet.create({
   cancelText: { color: colors.text, fontWeight: '700' },
   save: { backgroundColor: colors.primary },
   saveText: { color: '#fff', fontWeight: '700' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-  },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 12, color: colors.textMuted },
-  rowValue: { fontSize: 15, color: colors.text, fontWeight: '600', marginTop: 1 },
-  edit: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    marginTop: 16,
-  },
-  editText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+
+  // Small, centered button (not full width).
   logout: {
-    alignSelf: 'stretch',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    borderRadius: 14,
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.danger,
-    marginTop: 12,
+    backgroundColor: '#FFF5F5',
+    marginTop: 4,
   },
-  logoutText: { color: colors.danger, fontSize: 16, fontWeight: '700' },
+  logoutText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
 });

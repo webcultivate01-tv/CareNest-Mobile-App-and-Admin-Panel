@@ -2,17 +2,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import DoctorCard from './DoctorCard';
-import DoctorModal from './DoctorModal';
 import SectionHeader from './SectionHeader';
 import { colors } from '../theme/colors';
 import { getDoctors, getToken } from '../api';
 
 const REFRESH_MS = 30000; // pick up admin changes (new doctor, leave, status) without a restart
 
-export default function AvailableDoctors() {
+// onSelectDoctor = open the booking flow for a doctor; reloadKey = change it to reload the list
+export default function AvailableDoctors({ onSelectDoctor = () => {}, reloadKey = 0 }) {
   const [doctors, setDoctors] = useState(null); // null = first load
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -27,7 +26,7 @@ export default function AvailableDoctors() {
     load();
     const timer = setInterval(load, REFRESH_MS);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, reloadKey]);
 
   return (
     <View>
@@ -36,9 +35,8 @@ export default function AvailableDoctors() {
       {error && doctors === null ? <Text style={styles.message}>{error}</Text> : null}
       {doctors && doctors.length === 0 && <Text style={styles.message}>No doctors are available right now.</Text>}
       {doctors?.map((doctor) => (
-        <DoctorCard key={doctor.id} doctor={doctor} onPress={() => setSelected(doctor)} />
+        <DoctorCard key={doctor.id} doctor={doctor} onPress={() => onSelectDoctor(doctor)} />
       ))}
-      <DoctorModal doctor={selected} onClose={() => setSelected(null)} onBooked={load} />
     </View>
   );
 }
