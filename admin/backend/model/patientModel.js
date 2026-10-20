@@ -54,7 +54,7 @@ export const updatePatientById = async (id, p) => {
 };
 
 export const deletePatientById = async (id) => {
-  const { rows } = await query("DELETE FROM patients WHERE id = $1 RETURNING id", [id]);
+  const { rows } = await query("DELETE FROM patients WHERE id = $1 RETURNING id, photo", [id]);
   return rows[0];
 };
 
@@ -102,7 +102,7 @@ export const findPatientByPhoneExcept = async (phone, id) => {
   return rows[0];
 };
 
-// photo = path like "uploads/patients/5/profile.jpg", or null to remove
+// photo = path like "uploads/patients/Tejas Mehar/profile-3-1792510081361.jpg", or null to remove
 export const setPatientPhoto = async (id, photo) => {
   const { rows } = await query(
     `UPDATE patients SET photo = $1, "updatedAt" = now() WHERE id = $2 RETURNING ${publicColumns}`,

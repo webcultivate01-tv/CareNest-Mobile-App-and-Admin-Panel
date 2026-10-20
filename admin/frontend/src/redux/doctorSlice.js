@@ -4,13 +4,17 @@ const doctorSlice = createSlice({
   name: "doctor",
   initialState: {
     doctorData: [],
+    doctorStatus: "loading", // "loading" | "ready" | "error"
   },
   reducers: {
     setDoctorData: (state, action) => {
       state.doctorData = action.payload;
     },
+    setDoctorStatus: (state, action) => {
+      state.doctorStatus = action.payload;
+    },
   },
 });
 
-export const { setDoctorData } = doctorSlice.actions;
+export const { setDoctorData, setDoctorStatus } = doctorSlice.actions;
 export default doctorSlice.reducer;

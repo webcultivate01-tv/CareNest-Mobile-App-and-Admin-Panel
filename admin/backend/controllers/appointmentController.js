@@ -1,11 +1,17 @@
+import { saveAppointment } from "../config/booking.js";
 import {
   appointmentStatuses,
   deleteAppointmentById,
   findAppointmentById,
   findAppointments,
-  insertAppointment,
   updateAppointmentById,
 } from "../model/appointmentModel.js";
+
+// BookingError (config/booking.js) carries its own status code
+const sendError = (res, name, error) =>
+  error.status
+    ? res.status(error.status).json({ message: error.message })
+    : res.status(500).json({ message: `${name} error ${error.message}` });
 
 export const getAppointments = async (req, res) => {
   try {
@@ -26,7 +32,8 @@ export const createAppointment = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const appointment = await insertAppointment({
+    // slot, schedule, leave and double-booking checks + fee snapshot happen inside saveAppointment
+    const appointment = await saveAppointment({
       patientId,
       doctorId,
       scheduledAt,
@@ -35,7 +42,7 @@ export const createAppointment = async (req, res) => {
     });
     return res.status(201).json({ message: "Appointment created successfully", appointment });
   } catch (error) {
-    return res.status(500).json({ message: `CreateAppointment error ${error.message}` });
+    return sendError(res, "CreateAppointment", error);
   }
 };
 
@@ -52,16 +59,27 @@ export const editAppointment = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const appointment = await updateAppointmentById(appointmentId, {
+    const next = {
       patientId: patientId || oldAppointment.patientId,
       doctorId: doctorId || oldAppointment.doctorId,
       scheduledAt: scheduledAt || oldAppointment.scheduledAt,
       status: status || oldAppointment.status,
       notes: notes === undefined ? oldAppointment.notes : notes,
-    });
+    };
+
+    // a new doctor / time, or bringing back a cancelled appointment, must pass the slot checks again
+    const movedSlot =
+      Number(next.doctorId) !== oldAppointment.doctorId ||
+      new Date(next.scheduledAt).getTime() !== new Date(oldAppointment.scheduledAt).getTime();
+    const revived = oldAppointment.status === "cancelled" && next.status !== "cancelled";
+
+    const appointment =
+      next.status !== "cancelled" && (movedSlot || revived)
+        ? await saveAppointment({ id: oldAppointment.id, ...next })
+        : await updateAppointmentById(appointmentId, next);
     return res.status(200).json({ message: "Appointment updated successfully", appointment });
   } catch (error) {
-    return res.status(500).json({ message: `EditAppointment error ${error.message}` });
+    return sendError(res, "EditAppointment", error);
   }
 };
 

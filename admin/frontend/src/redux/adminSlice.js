@@ -5,6 +5,7 @@ const adminSlice = createSlice({
   initialState: {
     adminData: null,
     authChecked: false,
+    adminListData: [],
   },
   reducers: {
     setAdminData: (state, action) => {
@@ -13,8 +14,11 @@ const adminSlice = createSlice({
     setAuthChecked: (state, action) => {
       state.authChecked = action.payload;
     },
+    setAdminListData: (state, action) => {
+      state.adminListData = action.payload;
+    },
   },
 });
 
-export const { setAdminData, setAuthChecked } = adminSlice.actions;
+export const { setAdminData, setAuthChecked, setAdminListData } =adminSlice.actions;
 export default adminSlice.reducer;

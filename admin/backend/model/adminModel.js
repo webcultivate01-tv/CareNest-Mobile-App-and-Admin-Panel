@@ -1,5 +1,9 @@
 import { query } from "../config/database.js";
 
+// role: "admin" (exactly one, the owner of the panel) or "subadmin"
+// photo: path like "uploads/subadmins/Subadmin 1/profile-4-1792510081361.jpg" (see config/photos.js)
+const PUBLIC_FIELDS = `id, name, email, phone, role, "isBlocked", photo, "createdAt", "updatedAt"`;
+
 export const createAdminTable = async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS admins (
@@ -7,9 +11,27 @@ export const createAdminTable = async () => {
       name TEXT NOT NULL DEFAULT 'Admin',
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
+      phone TEXT,
+      role TEXT NOT NULL DEFAULT 'subadmin',
+      "isBlocked" BOOLEAN NOT NULL DEFAULT false,
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `);
+  // older databases were created before phone / roles / blocking existed
+  await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS phone TEXT`);
+  await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'subadmin'`);
+  await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS "isBlocked" BOOLEAN NOT NULL DEFAULT false`);
+  await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS photo TEXT`); // path under uploads/
+  await ensurePrimaryAdmin();
+};
+
+// the oldest account becomes the admin when no admin exists yet
+export const ensurePrimaryAdmin = async () => {
+  await query(`
+    UPDATE admins SET role = 'admin', "isBlocked" = false
+    WHERE id = (SELECT id FROM admins ORDER BY "createdAt", id LIMIT 1)
+      AND NOT EXISTS (SELECT 1 FROM admins WHERE role = 'admin')
   `);
 };
 
@@ -19,19 +41,84 @@ export const findAdminByEmail = async (email) => {
 };
 
 export const findAdminById = async (id) => {
+  const { rows } = await query(`SELECT ${PUBLIC_FIELDS} FROM admins WHERE id = $1`, [id]);
+  return rows[0];
+};
+
+export const findAdminWithPasswordById = async (id) => {
+  const { rows } = await query("SELECT * FROM admins WHERE id = $1", [id]);
+  return rows[0];
+};
+
+export const findAdmins = async () => {
   const { rows } = await query(
-    "SELECT id, name, email FROM admins WHERE id = $1",
+    `SELECT ${PUBLIC_FIELDS} FROM admins ORDER BY (role = 'admin') DESC, "createdAt" ASC`
+  );
+  return rows;
+};
+
+export const insertAdmin = async (name, email, password, phone) => {
+  const { rows } = await query(
+    `INSERT INTO admins (name, email, password, phone, role) VALUES ($1, $2, $3, $4, 'subadmin')
+     RETURNING ${PUBLIC_FIELDS}`,
+    [name, email, password, phone || null]
+  );
+  return rows[0];
+};
+
+// phone undefined keeps the current number, "" clears it
+export const updateAdminById = async (id, name, email, phone) => {
+  const { rows } = await query(
+    `UPDATE admins SET name = $1, email = $2,
+       phone = CASE WHEN $3::boolean THEN $4 ELSE phone END, "updatedAt" = now()
+     WHERE id = $5 RETURNING ${PUBLIC_FIELDS}`,
+    [name, email, phone !== undefined, phone || null, id]
+  );
+  return rows[0];
+};
+
+export const updateAdminBlocked = async (id, isBlocked) => {
+  const { rows } = await query(
+    `UPDATE admins SET "isBlocked" = $1, "updatedAt" = now()
+     WHERE id = $2 AND role = 'subadmin' RETURNING ${PUBLIC_FIELDS}`,
+    [isBlocked, id]
+  );
+  return rows[0];
+};
+
+export const updateAdminPassword = async (id, password) => {
+  const { rows } = await query(
+    `UPDATE admins SET password = $1, "updatedAt" = now() WHERE id = $2 RETURNING id`,
+    [password, id]
+  );
+  return rows[0];
+};
+
+export const deleteAdminById = async (id) => {
+  const { rows } = await query(
+    "DELETE FROM admins WHERE id = $1 AND role = 'subadmin' RETURNING id, photo",
     [id]
   );
   return rows[0];
 };
 
-export const upsertAdmin = async (name, email, password) => {
+// photo = relative path under uploads/, or null to remove
+export const setAdminPhoto = async (id, photo) => {
   const { rows } = await query(
-    `INSERT INTO admins (name, email, password) VALUES ($1, $2, $3)
-     ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, "updatedAt" = now()
+    `UPDATE admins SET photo = $1, "updatedAt" = now() WHERE id = $2 RETURNING ${PUBLIC_FIELDS}`,
+    [photo, id]
+  );
+  return rows[0];
+};
+
+// phone omitted keeps the current number on an existing account
+export const upsertAdmin = async (name, email, password, phone) => {
+  const { rows } = await query(
+    `INSERT INTO admins (name, email, password, phone) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password,
+       phone = COALESCE(EXCLUDED.phone, admins.phone), "updatedAt" = now()
      RETURNING id, name, email`,
-    [name, email, password]
+    [name, email, password, phone || null]
   );
   return rows[0];
 };

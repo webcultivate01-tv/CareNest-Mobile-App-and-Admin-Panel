@@ -2,6 +2,8 @@ import { query } from "../config/database.js";
 
 export const appointmentStatuses = ["pending", "confirmed", "completed", "cancelled"];
 
+// fee + durationMinutes are copied from the doctor when the appointment is booked, so later
+// fee / duration changes never rewrite old appointments.
 export const createAppointmentTable = async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS appointments (
@@ -16,11 +18,26 @@ export const createAppointmentTable = async () => {
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS fee NUMERIC(10,2)");
+  await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "durationMinutes" INT NOT NULL DEFAULT 15');
+  // appointments made before fee snapshots existed: use the doctor's current fee once
+  await query('UPDATE appointments a SET fee = d.fee FROM doctors d WHERE d.id = a."doctorId" AND a.fee IS NULL');
+  await query('CREATE INDEX IF NOT EXISTS appointments_doctor_time_idx ON appointments ("doctorId", "scheduledAt")');
+  // last line of defence against double booking (bookings also take a per-doctor lock, see config/booking.js)
+  try {
+    await query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS appointments_doctor_slot_key
+       ON appointments ("doctorId", "scheduledAt") WHERE status <> 'cancelled'`
+    );
+  } catch (error) {
+    console.log(`Could not create unique slot index (duplicate bookings already exist?): ${error.message}`);
+  }
 };
 
 // joined with patient + doctor (same idea as .populate())
 const selectAppointment = `
-  SELECT a.*, p.name AS "patientName", d.name AS "doctorName", d.specialty AS "doctorSpecialty"
+  SELECT a.*, p.name AS "patientName", d.name AS "doctorName", d.specialty AS "doctorSpecialty",
+    d.photo AS "doctorPhoto"
   FROM appointments a
   JOIN patients p ON p.id = a."patientId"
   JOIN doctors d ON d.id = a."doctorId"
@@ -31,20 +48,18 @@ export const findAppointments = async () => {
   return rows;
 };
 
-export const findAppointmentById = async (id) => {
-  const { rows } = await query(`${selectAppointment} WHERE a.id = $1`, [id]);
+export const findAppointmentsByPatient = async (patientId) => {
+  const { rows } = await query(`${selectAppointment} WHERE a."patientId" = $1 ORDER BY a."scheduledAt" DESC`, [patientId]);
+  return rows;
+};
+
+// `db` is the pool's query or a transaction client (see config/booking.js)
+export const findAppointmentById = async (id, db = { query }) => {
+  const { rows } = await db.query(`${selectAppointment} WHERE a.id = $1`, [id]);
   return rows[0];
 };
 
-export const insertAppointment = async (a) => {
-  const { rows } = await query(
-    `INSERT INTO appointments ("patientId", "doctorId", "scheduledAt", status, notes)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [a.patientId, a.doctorId, a.scheduledAt, a.status, a.notes]
-  );
-  return findAppointmentById(rows[0].id);
-};
-
+// plain edit (status / notes / patient): fee and duration are never touched
 export const updateAppointmentById = async (id, a) => {
   const { rows } = await query(
     `UPDATE appointments SET "patientId" = $1, "doctorId" = $2, "scheduledAt" = $3,

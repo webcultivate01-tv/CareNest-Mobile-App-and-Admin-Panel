@@ -1,4 +1,5 @@
 import path from "path";
 
-// admin/uploads: one folder per user (admin/uploads/<userId>/), holding that user's profile photo
+// admin/uploads: profile photos, one folder per person's name inside
+// admin/uploads/patients/, admin/uploads/admins/ and admin/uploads/subadmins/ (see photos.js)
 export const UPLOADS_DIR = path.resolve(import.meta.dirname, "..", "..", "uploads");

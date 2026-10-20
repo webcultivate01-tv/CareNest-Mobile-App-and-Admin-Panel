@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "seed": "node config/seedAdmin.js"
+    "seed": "node config/seedAdmin.js",
+    "seed:doctors": "node config/seedDoctors.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

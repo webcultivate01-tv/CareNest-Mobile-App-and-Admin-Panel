@@ -10,10 +10,11 @@ import patientRouter from "./routes/patientRoute.js";
 import appointmentRouter from "./routes/appointmentRoute.js";
 import dashboardRouter from "./routes/dashboardRoute.js";
 import userRouter from "./routes/userRoute.js";
+import adminRouter from "./routes/adminRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
 
 dotenv.config();
-fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // profile photos: admin/uploads/<userId>/
+fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // profile photos: admin/uploads/<patients|admins|subadmins>/<name>/
 const app = express();
 
 app.use(express.json());
@@ -27,6 +28,7 @@ app.use("/api/doctor", doctorRouter);
 app.use("/api/patient", patientRouter);
 app.use("/api/appointment", appointmentRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/user", userRouter); // mobile app: signup / login
 
 app.get("/", (req, res) => res.send("CareNest Admin API"));

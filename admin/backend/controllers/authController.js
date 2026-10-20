@@ -22,6 +22,9 @@ export const login = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
+    if (admin.isBlocked) {
+      return res.status(403).json({ message: "Your account has been blocked. Contact the admin." });
+    }
 
     const token = genToken(admin.id);
     res.cookie("token", token, {
@@ -31,7 +34,7 @@ export const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({ id: admin.id, name: admin.name, email: admin.email });
+    return res.status(200).json({ id: admin.id, name: admin.name, email: admin.email, role: admin.role, photo: admin.photo });
   } catch (error) {
     return res.status(500).json({ message: `Login error ${error.message}` });
   }

@@ -6,6 +6,28 @@
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-shimmer: shimmer 1.2s ease;
   --animate-pulse-soft: pulse-soft 4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-pop-in: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
 
   @keyframes fade-up {
     from {
@@ -42,7 +64,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
-  .animate-pulse-soft {
+  .animate-pulse-soft,
+  .animate-fade-in,
+  .animate-pop-in {
     animation: none;
   }
 }

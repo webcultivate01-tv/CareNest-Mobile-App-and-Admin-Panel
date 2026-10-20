@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -14,7 +14,11 @@ const statusColors = {
   completed: "bg-emerald-50 text-emerald-700",
   cancelled: "bg-red-50 text-red-700",
 };
-const emptyForm = { patientId: "", doctorId: "", scheduledAt: "", notes: "" };
+const emptyForm = { patientId: "", doctorId: "", date: "", scheduledAt: "", notes: "" };
+const formatSlot = (hhmm) => {
+  const h = Number(hhmm.slice(0, 2));
+  return `${h % 12 || 12}:${hhmm.slice(3)} ${h < 12 ? "AM" : "PM"}`;
+};
 
 function Appointments() {
   const dispatch = useDispatch();
@@ -25,6 +29,21 @@ function Appointments() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loading1, setLoading1] = useState(null);
+  const [slots, setSlots] = useState(null); // free slots for the chosen doctor + date (null = not loaded)
+
+  // only valid, free slots can be picked; the server checks again when saving
+  useEffect(() => {
+    setSlots(null);
+    if (!form.doctorId || !form.date) return;
+    let current = true;
+    axios
+      .get(serverUrl + `/api/doctor/slots/${form.doctorId}?date=${form.date}`, { withCredentials: true })
+      .then((result) => current && setSlots(result.data.slots))
+      .catch(() => current && setSlots([]));
+    return () => {
+      current = false;
+    };
+  }, [form.doctorId, form.date]);
 
   const handleCreateAppointment = async (e) => {
     e.preventDefault();
@@ -32,7 +51,7 @@ function Appointments() {
     try {
       const result = await axios.post(
         serverUrl + "/api/appointment/create",
-        { ...form, scheduledAt: form.scheduledAt && new Date(form.scheduledAt).toISOString() },
+        { patientId: form.patientId, doctorId: form.doctorId, scheduledAt: form.scheduledAt, notes: form.notes },
         { withCredentials: true }
       );
       dispatch(setAppointmentData([result.data.appointment, ...appointmentData]));
@@ -114,6 +133,7 @@ function Appointments() {
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">Doctor</th>
               <th className="px-4 py-3">Date & Time</th>
+              <th className="px-4 py-3">Fee</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Notes</th>
               <th className="px-4 py-3"></th>
@@ -129,6 +149,9 @@ function Appointments() {
                   <span className="text-gray-400">{appointment.doctorSpecialty}</span>
                 </td>
                 <td className="px-4 py-3">{new Date(appointment.scheduledAt).toLocaleString()}</td>
+                <td className="px-4 py-3 tabular-nums">
+                  {appointment.fee == null ? "-" : `₹${Number(appointment.fee).toLocaleString("en-IN")}`}
+                </td>
                 <td className="px-4 py-3">
                   <select
                     value={appointment.status}
@@ -156,7 +179,7 @@ function Appointments() {
             ))}
             {appointmentData.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                   No appointments yet
                 </td>
               </tr>
@@ -183,21 +206,45 @@ function Appointments() {
             <select
               className={inputClass}
               value={form.doctorId}
-              onChange={(e) => setForm({ ...form, doctorId: e.target.value })}
+              onChange={(e) => setForm({ ...form, doctorId: e.target.value, scheduledAt: "" })}
             >
               <option value="">Select doctor</option>
-              {doctorData.map((doctor) => (
+              {doctorData
+                .filter((doctor) => doctor.isAvailable)
+                .map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>
-                  {doctor.name} - {doctor.specialty}
+                  {doctor.name} - {doctor.specialty} (₹{Number(doctor.fee)})
                 </option>
               ))}
             </select>
             <input
-              type="datetime-local"
+              type="date"
+              className={inputClass}
+              min={new Date().toLocaleDateString("en-CA")}
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value, scheduledAt: "" })}
+            />
+            <select
               className={inputClass}
               value={form.scheduledAt}
+              disabled={!slots || slots.length === 0}
               onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-            />
+            >
+              <option value="">
+                {!form.doctorId || !form.date
+                  ? "Select doctor and date first"
+                  : slots === null
+                    ? "Loading slots..."
+                    : slots.length === 0
+                      ? "No free slots on this date"
+                      : "Select time slot"}
+              </option>
+              {(slots || []).map((slot) => (
+                <option key={slot.startsAt} value={slot.startsAt}>
+                  {formatSlot(slot.time)}
+                </option>
+              ))}
+            </select>
             <textarea
               className={inputClass}
               placeholder="Notes (optional)"

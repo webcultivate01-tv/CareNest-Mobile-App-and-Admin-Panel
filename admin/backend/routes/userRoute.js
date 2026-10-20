@@ -1,16 +1,14 @@
 import express from "express";
-import multer from "multer";
 import { deletePhoto, getCurrentUser, login, signUp, updateProfile, uploadPhoto } from "../controllers/userController.js";
 import isUserAuth from "../middleware/isUserAuth.js";
-
-// keep the image in memory; the controller saves it in admin/uploads/<userId>/
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  // reject with a message (a silent skip would look like "no file sent")
-  fileFilter: (req, file, cb) =>
-    file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("Only image files are allowed")),
-});
+import {
+  bookAppointment,
+  getBookableDoctors,
+  getDoctorDays,
+  getDoctorSlots,
+  getMyAppointments,
+} from "../controllers/bookingController.js";
+import receivePhoto from "../middleware/receivePhoto.js";
 
 const userRouter = express.Router();
 
@@ -18,13 +16,15 @@ userRouter.post("/signup", signUp);
 userRouter.post("/login", login);
 userRouter.get("/getcurrentuser", isUserAuth, getCurrentUser);
 userRouter.put("/profile", isUserAuth, updateProfile);
-// run multer by hand so a too-big file gives a clear message instead of a crash
-const receivePhoto = (req, res, next) =>
-  upload.single("photo")(req, res, (err) =>
-    err ? res.status(400).json({ message: err.code === "LIMIT_FILE_SIZE" ? "Image must be under 5 MB" : err.message }) : next()
-  );
-
+// photo is saved in admin/uploads/patients/<patient name>/
 userRouter.post("/photo", isUserAuth, receivePhoto, uploadPhoto);
 userRouter.delete("/photo", isUserAuth, deletePhoto);
+
+// booking: active doctors only; slots come from schedule + leave + existing bookings
+userRouter.get("/doctors", isUserAuth, getBookableDoctors);
+userRouter.get("/doctordays/:doctorId", isUserAuth, getDoctorDays);
+userRouter.get("/doctorslots/:doctorId", isUserAuth, getDoctorSlots); // ?date=YYYY-MM-DD
+userRouter.post("/bookappointment", isUserAuth, bookAppointment);
+userRouter.get("/myappointments", isUserAuth, getMyAppointments);
 
 export default userRouter;

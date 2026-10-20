@@ -1,236 +1,209 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
+import { FiClock, FiEdit2, FiEye, FiPlus, FiPower, FiSearch, FiUserPlus } from "react-icons/fi";
 import { serverUrl } from "../App";
-import { setDoctorData } from "../redux/doctorSlice";
-import Modal from "../components/Modal";
-
-const emptyForm = {
-  name: "",
-  specialty: "",
-  email: "",
-  phone: "",
-  experienceYears: 0,
-  fee: 0,
-  isAvailable: true,
-};
+import Avatar from "../components/Avatar";
+import { IconAction, primaryButton, secondaryButton, showError, showSuccess } from "../components/AdminUI";
+import {
+  ConfirmDialog,
+  DoctorStatusBadge,
+  cardClass,
+  formatMoney,
+  summarizeSchedule,
+  useReplaceDoctor,
+} from "../components/DoctorUI";
+import { fetchDoctors } from "../CustomHooks/getDoctors";
 
 function Doctors() {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { doctorData } = useSelector((state) => state.doctor);
-  const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [loading1, setLoading1] = useState(null);
+  const replaceDoctor = useReplaceDoctor();
+  const { doctorData, doctorStatus } = useSelector((state) => state.doctor);
+  const [search, setSearch] = useState("");
+  const [statusTarget, setStatusTarget] = useState(null);
 
-  const handleOpenCreate = () => {
-    setEditId(null);
-    setForm(emptyForm);
-    setShowModal(true);
-  };
+  const filtered = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    if (!text) return doctorData;
+    return doctorData.filter((d) => d.name.toLowerCase().includes(text) || d.specialty.toLowerCase().includes(text));
+  }, [doctorData, search]);
 
-  const handleOpenEdit = (doctor) => {
-    setEditId(doctor.id);
-    setForm({
-      name: doctor.name,
-      specialty: doctor.specialty,
-      email: doctor.email || "",
-      phone: doctor.phone || "",
-      experienceYears: doctor.experienceYears,
-      fee: doctor.fee,
-      isAvailable: doctor.isAvailable,
-    });
-    setShowModal(true);
-  };
-
-  const handleSaveDoctor = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleChangeStatus = async () => {
+    const doctor = statusTarget;
     try {
-      if (editId) {
-        const result = await axios.post(serverUrl + `/api/doctor/editdoctor/${editId}`, form, {
-          withCredentials: true,
-        });
-        dispatch(setDoctorData(doctorData.map((d) => (d.id === editId ? result.data.doctor : d))));
-      } else {
-        const result = await axios.post(serverUrl + "/api/doctor/create", form, {
-          withCredentials: true,
-        });
-        dispatch(setDoctorData([result.data.doctor, ...doctorData]));
-      }
-      setShowModal(false);
-      setLoading(false);
-      toast.success("Doctor Saved Successfully", { position: "top-center", autoClose: 1000 });
+      const result = await axios.post(
+        serverUrl + `/api/doctor/status/${doctor.id}`,
+        { isAvailable: !doctor.isAvailable },
+        { withCredentials: true }
+      );
+      replaceDoctor(result.data.doctor);
+      showSuccess(result.data.message);
+      setStatusTarget(null);
     } catch (error) {
-      console.log(error);
-      setLoading(false);
-      toast.error(error.response?.data?.message || "Something went wrong", {
-        position: "top-center",
-        autoClose: 2000,
-      });
+      showError(error);
+      return false;
     }
   };
-
-  const handleRemoveDoctor = async (doctorId) => {
-    if (!window.confirm("Remove this doctor? Their appointments will also be removed.")) return;
-    setLoading1(doctorId);
-    try {
-      await axios.delete(serverUrl + `/api/doctor/remove/${doctorId}`, { withCredentials: true });
-      dispatch(setDoctorData(doctorData.filter((d) => d.id !== doctorId)));
-      setLoading1(null);
-      toast.success("Doctor Removed Successfully", { position: "top-center", autoClose: 1000 });
-    } catch (error) {
-      console.log(error);
-      setLoading1(null);
-      toast.error(error.response?.data?.message || "Something went wrong", {
-        position: "top-center",
-        autoClose: 2000,
-      });
-    }
-  };
-
-  const inputClass =
-    "w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500";
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Doctors</h1>
-        <button
-          onClick={handleOpenCreate}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm"
-        >
-          + Add Doctor
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900">Doctor Management</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Profiles, fees and availability for booking.</p>
+        </div>
+        <button onClick={() => navigate("/doctors/new")} className={`${primaryButton} shrink-0 self-start`}>
+          <FiPlus className="text-base" /> Add Doctor
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 text-gray-500">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Specialty</th>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Exp.</th>
-              <th className="px-4 py-3">Fee</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {doctorData.map((doctor) => (
-              <tr key={doctor.id} className="border-t border-gray-100">
-                <td className="px-4 py-3 font-medium">{doctor.name}</td>
-                <td className="px-4 py-3">{doctor.specialty}</td>
-                <td className="px-4 py-3">
-                  {doctor.email || "-"}
-                  <br />
-                  <span className="text-gray-400">{doctor.phone}</span>
-                </td>
-                <td className="px-4 py-3">{doctor.experienceYears} yrs</td>
-                <td className="px-4 py-3">₹{doctor.fee}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      doctor.isAvailable ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {doctor.isAvailable ? "Available" : "Unavailable"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right space-x-3">
-                  <button
-                    onClick={() => handleOpenEdit(doctor)}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleRemoveDoctor(doctor.id)}
-                    disabled={loading1 === doctor.id}
-                    className="text-red-600 hover:underline"
-                  >
-                    {loading1 === doctor.id ? <ClipLoader size={14} color="red" /> : "Delete"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {doctorData.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                  No doctors yet
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className={cardClass}>
+        <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="relative sm:w-80">
+            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or specialization"
+              aria-label="Search doctors"
+              className="w-full h-10 pl-10 pr-3 rounded-xl border border-gray-200 bg-gray-50/60 text-sm outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+            />
+          </div>
+        </div>
+
+        {doctorStatus === "loading" && (
+          <div className="py-20 flex justify-center">
+            <ClipLoader size={34} color="#059669" />
+          </div>
+        )}
+
+        {doctorStatus === "error" && (
+          <div className="py-16 text-center px-4">
+            <p className="font-semibold text-gray-700">Could not load doctors</p>
+            <p className="text-sm text-gray-400 mb-4">Check your connection and try again.</p>
+            <button onClick={() => fetchDoctors(dispatch)} className={`${secondaryButton} mx-auto`}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {doctorStatus === "ready" && doctorData.length === 0 && (
+          <div className="py-16 text-center px-4">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center text-2xl mb-3">
+              <FiUserPlus />
+            </div>
+            <p className="font-semibold text-gray-700">No doctors yet</p>
+            <p className="text-sm text-gray-400 mb-4">Add your first doctor to start accepting appointments.</p>
+            <button onClick={() => navigate("/doctors/new")} className={`${primaryButton} mx-auto`}>
+              <FiPlus /> Add Doctor
+            </button>
+          </div>
+        )}
+
+        {doctorStatus === "ready" && doctorData.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wider text-gray-400">
+                  <th className="pl-5 pr-3 py-3 font-semibold">Doctor</th>
+                  <th className="hidden md:table-cell px-3 py-3 font-semibold">Specialization</th>
+                  <th className="hidden sm:table-cell px-3 py-3 font-semibold">Fee</th>
+                  <th className="hidden lg:table-cell px-3 py-3 font-semibold">Working schedule</th>
+                  <th className="px-3 py-3 font-semibold">Status</th>
+                  <th className="pl-3 pr-5 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((doctor) => {
+                  const schedule = summarizeSchedule(doctor.schedule);
+                  return (
+                    <tr key={doctor.id} className="border-t border-gray-100 hover:bg-gray-50/70">
+                      <td className="pl-5 pr-3 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar name={doctor.name} photo={doctor.photo} />
+                          <div className="min-w-0">
+                            <button
+                              onClick={() => navigate(`/doctors/${doctor.id}`)}
+                              className="font-semibold text-gray-900 hover:text-emerald-700 text-left"
+                            >
+                              {doctor.name}
+                            </button>
+                            {/* narrow screens hide the columns, so the key details stay under the name */}
+                            <p className="md:hidden text-[13px] text-gray-500">{doctor.specialty}</p>
+                            <p className="sm:hidden text-[13px] text-gray-500">{formatMoney(doctor.fee)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden md:table-cell px-3 py-3 text-gray-700">{doctor.specialty}</td>
+                      <td className="hidden sm:table-cell px-3 py-3 text-gray-700 whitespace-nowrap tabular-nums">
+                        {formatMoney(doctor.fee)}
+                      </td>
+                      <td className="hidden lg:table-cell px-3 py-3 text-gray-600">
+                        {schedule.length === 0 ? (
+                          <span className="text-amber-600 text-[13px]">Not set — cannot be booked</span>
+                        ) : (
+                          schedule.map((s) => (
+                            <p key={s.days} className="text-[13px]">
+                              <span className="font-semibold text-gray-800">{s.days}</span> {s.hours}
+                            </p>
+                          ))
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <DoctorStatusBadge active={doctor.isAvailable} />
+                      </td>
+                      <td className="pl-3 pr-5 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <IconAction label="View" onClick={() => navigate(`/doctors/${doctor.id}`)}>
+                            <FiEye />
+                          </IconAction>
+                          <IconAction label="Edit" onClick={() => navigate(`/doctors/${doctor.id}/edit`)}>
+                            <FiEdit2 />
+                          </IconAction>
+                          <IconAction label="Manage availability" onClick={() => navigate(`/doctors/${doctor.id}/availability`)}>
+                            <FiClock />
+                          </IconAction>
+                          <IconAction
+                            label={doctor.isAvailable ? "Deactivate" : "Activate"}
+                            onClick={() => setStatusTarget(doctor)}
+                          >
+                            <FiPower />
+                          </IconAction>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-14 text-center">
+                      <p className="font-semibold text-gray-700">No matching doctors</p>
+                      <p className="text-sm text-gray-400">Try a different name or specialization.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {showModal && (
-        <Modal title={editId ? "Edit Doctor" : "Add Doctor"} onClose={() => setShowModal(false)}>
-          <form onSubmit={handleSaveDoctor} className="space-y-3">
-            <input
-              className={inputClass}
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <input
-              className={inputClass}
-              placeholder="Specialty"
-              value={form.specialty}
-              onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-            />
-            <input
-              className={inputClass}
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            <input
-              className={inputClass}
-              placeholder="Phone"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-            <div className="flex gap-3">
-              <input
-                type="number"
-                min="0"
-                className={inputClass}
-                placeholder="Experience (years)"
-                value={form.experienceYears}
-                onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
-              />
-              <input
-                type="number"
-                min="0"
-                className={inputClass}
-                placeholder="Fee"
-                value={form.fee}
-                onChange={(e) => setForm({ ...form, fee: e.target.value })}
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isAvailable}
-                onChange={(e) => setForm({ ...form, isAvailable: e.target.checked })}
-              />
-              Available
-            </label>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-10 flex items-center justify-center"
-            >
-              {loading ? <ClipLoader size={22} color="white" /> : "Save"}
-            </button>
-          </form>
-        </Modal>
+      {statusTarget && (
+        <ConfirmDialog
+          title={statusTarget.isAvailable ? "Deactivate doctor?" : "Activate doctor?"}
+          icon={<FiPower />}
+          text={
+            statusTarget.isAvailable
+              ? `${statusTarget.name} will no longer appear for patients and cannot be booked. Existing appointments are not cancelled.`
+              : `${statusTarget.name} will appear for patients and can be booked during the working schedule.`
+          }
+          confirmLabel={statusTarget.isAvailable ? "Deactivate" : "Activate"}
+          onConfirm={handleChangeStatus}
+          onClose={() => setStatusTarget(null)}
+        />
       )}
     </div>
   );

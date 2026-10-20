@@ -1,9 +1,7 @@
 import bcrypt from "bcryptjs";
 import validator from "validator";
 import { genUserToken } from "../config/token.js";
-import fs from "fs/promises";
-import path from "path";
-import { UPLOADS_DIR } from "../config/paths.js";
+import { movePhoto, photoUrl, removePhotoFile, savePhoto } from "../config/photos.js";
 import {
   findPatientByPhoneExcept,
   findPatientByPhoneOrEmail,
@@ -15,8 +13,6 @@ import {
 } from "../model/patientModel.js";
 
 // same shape the app already uses: name, mobile, dob, email
-const PATIENTS_DIR = UPLOADS_DIR;
-
 // photo is stored as a relative path; the app needs a full URL
 const toUser = (patient, req) => ({
   id: patient.id,
@@ -24,8 +20,14 @@ const toUser = (patient, req) => ({
   mobile: patient.phone,
   dob: patient.dob,
   email: patient.email,
-  photo: patient.photo ? `${req.protocol}://${req.get("host")}/${patient.photo}` : null,
+  photo: photoUrl(req, patient.photo),
 });
+
+// photos live in admin/uploads/patients/<patient name>/; after a name change move it to the new folder
+export const keepPatientPhotoWithName = async (patient) => {
+  const photo = await movePhoto(patient.photo, "patients", patient.name);
+  return photo === patient.photo ? patient : setPatientPhoto(patient.id, photo);
+};
 
 // checks DD/MM/YYYY is a real date in the past
 const isValidDob = (text) => {
@@ -139,31 +141,28 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ message: "This mobile number is already used" });
     }
 
-    const patient = await updatePatientProfile(req.userId, { name: name.trim(), phone: mobile, dob });
+    let patient = await updatePatientProfile(req.userId, { name: name.trim(), phone: mobile, dob });
+    patient = await keepPatientPhotoWithName(patient);
     return res.status(200).json({ message: "Profile updated", user: toUser(patient, req) });
   } catch (error) {
     return res.status(500).json({ message: `UpdateProfile error ${error.message}` });
   }
 };
 
-// uploads/<id>/ holds only that patient's current photo
-const clearPatientFolder = (id) => fs.rm(path.join(PATIENTS_DIR, String(id)), { recursive: true, force: true });
-
-const EXTENSIONS = { "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic", "image/heif": ".heif" };
-
 export const uploadPhoto = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "Choose an image (max 5 MB)" });
     }
-    // replace: remove the old photo first, then save the new one
-    await clearPatientFolder(req.userId);
-    const folder = path.join(PATIENTS_DIR, String(req.userId));
-    await fs.mkdir(folder, { recursive: true });
-    const fileName = `profile-${Date.now()}${EXTENSIONS[req.file.mimetype] || ".jpg"}`;
-    await fs.writeFile(path.join(folder, fileName), req.file.buffer);
+    const current = await findPatientById(req.userId);
+    if (!current) {
+      return res.status(404).json({ message: "User does not found" });
+    }
 
-    const patient = await setPatientPhoto(req.userId, `uploads/${req.userId}/${fileName}`);
+    // replace: save the new photo, then remove the old one
+    const photo = await savePhoto("patients", current.name, current.id, req.file);
+    const patient = await setPatientPhoto(req.userId, photo);
+    await removePhotoFile(current.photo);
     return res.status(200).json({ message: "Photo updated", user: toUser(patient, req) });
   } catch (error) {
     return res.status(500).json({ message: `UploadPhoto error ${error.message}` });
@@ -172,7 +171,8 @@ export const uploadPhoto = async (req, res) => {
 
 export const deletePhoto = async (req, res) => {
   try {
-    await clearPatientFolder(req.userId);
+    const current = await findPatientById(req.userId);
+    await removePhotoFile(current?.photo);
     const patient = await setPatientPhoto(req.userId, null);
     return res.status(200).json({ message: "Photo removed", user: toUser(patient, req) });
   } catch (error) {
