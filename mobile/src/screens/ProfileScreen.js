@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AuthInput from '../components/AuthInput';
+import SideMenu from '../components/SideMenu';
+import { useLanguage } from '../i18n';
 import { colors } from '../theme/colors';
 import { deletePhoto, getToken, updateProfile, uploadPhoto } from '../api';
 
@@ -39,8 +41,6 @@ function isValidDob(text) {
     year > 1900
   );
 }
-
-const comingSoon = (title) => () => Alert.alert(title, 'This feature is coming soon.');
 
 // Round icon used at the start of every row.
 function IconCircle({ icon, danger }) {
@@ -70,28 +70,13 @@ function InfoRow({ icon, label, value, onPress, last }) {
   );
 }
 
-// One row in the settings / support cards (title + subtitle).
-function MenuRow({ icon, title, subtitle, onPress, danger, last }) {
-  return (
-    <TouchableOpacity
-      style={[styles.row, !last && styles.rowDivider]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <IconCircle icon={icon} danger={danger} />
-      <View style={styles.rowText}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        <Text style={styles.menuSubtitle}>{subtitle}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </TouchableOpacity>
-  );
-}
 
 // user         = details saved when the user signed up / logged in
 // onUserChange = called with the new details after a successful edit / photo change
 // onLogout     = function we call when "Log out" is tapped
 export default function ProfileScreen({ user, onUserChange, onLogout }) {
+  const { t } = useLanguage();
+  const [menuOpen, setMenuOpen] = useState(false);
   const name = user.name || 'CareNest User';
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', mobile: '', dob: '' });
@@ -162,7 +147,12 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Profile</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{t("profile")}</Text>
+        <TouchableOpacity style={styles.dots} onPress={() => setMenuOpen(true)} hitSlop={8}>
+          <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
+        </TouchableOpacity>
+      </View>
 
       {/* Header card: photo, name, role, edit button */}
       <View style={styles.header}>
@@ -192,7 +182,7 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
           <Text style={styles.name} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={styles.role}>Patient</Text>
+          <Text style={styles.role}>{t("patient")}</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.editPill}
@@ -204,11 +194,11 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
                 size={18}
                 color={colors.primary}
               />
-              <Text style={styles.editPillText}>{editing ? 'Cancel' : 'Edit Profile'}</Text>
+              <Text style={styles.editPillText}>{editing ? t("cancel") : t("editProfile")}</Text>
             </TouchableOpacity>
             {user.photo && !photoBusy ? (
               <TouchableOpacity onPress={removePhoto} hitSlop={8}>
-                <Text style={styles.removePhotoText}>Remove photo</Text>
+                <Text style={styles.removePhotoText}>{t("removePhoto")}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -218,11 +208,11 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
       {/* Personal information */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Personal Information</Text>
+          <Text style={styles.cardTitle}>{t("personalInfo")}</Text>
           {!editing && (
             <TouchableOpacity style={styles.cardEdit} onPress={startEdit} hitSlop={8}>
               <Ionicons name="create-outline" size={18} color={colors.primary} />
-              <Text style={styles.cardEditText}>Edit</Text>
+              <Text style={styles.cardEditText}>{t("edit")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -262,20 +252,20 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
                 onPress={() => setEditing(false)}
                 disabled={saving}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.button, styles.save]} onPress={save} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>{t("save")}</Text>}
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <>
-            <InfoRow icon="call-outline" label="Mobile Number" value={user.mobile} onPress={startEdit} />
-            <InfoRow icon="calendar-outline" label="Date of Birth" value={user.dob} onPress={startEdit} />
+            <InfoRow icon="call-outline" label={t("mobileNumber")} value={user.mobile} onPress={startEdit} />
+            <InfoRow icon="calendar-outline" label={t("dob")} value={user.dob} onPress={startEdit} />
             <InfoRow
               icon="mail-outline"
-              label="Email Address"
+              label={t("email")}
               value={user.email}
               onPress={() => Alert.alert('Email', 'Email cannot be changed.')}
               last
@@ -283,61 +273,16 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
           </>
         )}
       </View>
-
-      {/* Account settings */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account Settings</Text>
-        <MenuRow
-          icon="notifications-outline"
-          title="Notifications"
-          subtitle="Appointment reminders and updates"
-          onPress={comingSoon('Notifications')}
-        />
-        <MenuRow
-          icon="lock-closed-outline"
-          title="Security & Privacy"
-          subtitle="Change password, manage data"
-          onPress={comingSoon('Security & Privacy')}
-          last
-        />
-      </View>
-
-      {/* Support */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Support & Information</Text>
-        <MenuRow
-          icon="help-circle-outline"
-          title="Help & Support"
-          subtitle="Get help or contact the clinic"
-          onPress={comingSoon('Help & Support')}
-        />
-        <MenuRow
-          icon="document-text-outline"
-          title="Terms & Privacy Policy"
-          subtitle="Read our terms and privacy policy"
-          onPress={comingSoon('Terms & Privacy Policy')}
-        />
-        <MenuRow
-          icon="trash-outline"
-          title="Delete Account"
-          subtitle="Permanently delete your account"
-          onPress={comingSoon('Delete Account')}
-          danger
-          last
-        />
-      </View>
-
-      <TouchableOpacity style={styles.logout} onPress={onLogout} activeOpacity={0.85}>
-        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} onLogout={onLogout} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 24 },
-  title: { fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 14 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text },
+  dots: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
 
   header: {
     flexDirection: 'row',

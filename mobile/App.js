@@ -15,6 +15,7 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import BottomTabBar from './src/components/BottomTabBar';
 import { colors } from './src/theme/colors';
+import { LanguageProvider } from './src/i18n';
 import { clearToken, getCurrentUser, getToken, saveToken } from './src/api';
 
 export default function App() {
@@ -86,6 +87,7 @@ export default function App() {
   }
 
   return (
+    <LanguageProvider>
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.root} edges={['top']}>
@@ -114,6 +116,7 @@ export default function App() {
         )}
       </SafeAreaView>
     </SafeAreaProvider>
+    </LanguageProvider>
   );
 }
 
