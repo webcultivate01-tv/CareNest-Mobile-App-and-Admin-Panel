@@ -192,9 +192,10 @@ function PaymentDetail() {
                 )}
                 <div>
                   <p className="font-semibold text-gray-900">{patient?.name || payment.patientName}</p>
-                  <p className="text-xs text-gray-400">Patient ID: {payment.patientId}</p>
                 </div>
               </div>
+              <Row label="Patient ID" value={payment.patientCode} />
+              <Row label="Patient Name" value={patient?.name || payment.patientName} />
               <Row label="Mobile Number" value={patient?.phone || payment.patientPhone} />
               <Row label="Email" value={patient?.email || payment.patientEmail} />
               <Row label="Date of Birth" value={patient?.dob} />
@@ -207,7 +208,7 @@ function PaymentDetail() {
             <div className={card}>
               <h3 className={`${section} mb-1`}>Appointment</h3>
               <Row label="Doctor" value={`${payment.doctorName} (${payment.doctorSpecialty})`} />
-              <Row label="Appointment ID" value={payment.appointmentId} />
+              <Row label="Appointment ID" value={payment.appointmentCode} />
               <Row label="Appointment Date" value={when(payment.appointmentScheduledAt)} />
               <Row label="Appointment Status" value={payment.appointmentStatus} />
             </div>

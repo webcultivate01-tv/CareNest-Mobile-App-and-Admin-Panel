@@ -95,6 +95,7 @@ function Patients() {
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
+              <th className="px-4 py-3">Patient ID</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Phone</th>
@@ -105,6 +106,7 @@ function Patients() {
           <tbody>
             {patientData.map((patient) => (
               <tr key={patient.id} className="border-t border-gray-100">
+                <td className="px-4 py-3 tabular-nums">{patient.code || patient.id}</td>
                 <td className="px-4 py-3 font-medium">{patient.name}</td>
                 <td className="px-4 py-3">{patient.email || "-"}</td>
                 <td className="px-4 py-3">{patient.phone || "-"}</td>
@@ -128,7 +130,7 @@ function Patients() {
             ))}
             {patientData.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                   No patients yet
                 </td>
               </tr>

@@ -59,7 +59,7 @@ export const createPaymentTable = async () => {
 // joined with appointment + doctor + patient, for the admin list/detail views
 const selectPayment = `
   SELECT p.*, a."scheduledAt" AS "appointmentScheduledAt", a.status AS "appointmentStatus",
-    pt.name AS "patientName", pt.email AS "patientEmail", pt.phone AS "patientPhone",
+    pt.name AS "patientName", pt.code AS "patientCode", a.code AS "appointmentCode", pt.email AS "patientEmail", pt.phone AS "patientPhone",
     d.id AS "doctorId", d.name AS "doctorName", d.specialty AS "doctorSpecialty"
   FROM payments p
   JOIN appointments a ON a.id = p."appointmentId"
@@ -78,12 +78,20 @@ const buildFilterWhere = ({ search, status, method, dateFrom, dateTo, minAmount,
   };
 
   if (search && search.trim()) {
-    params.push(`%${search.trim()}%`);
-    const n = params.length;
-    conditions.push(
-      `(pt.name ILIKE $${n} OR CAST(a.id AS TEXT) ILIKE $${n} OR COALESCE(p."providerPaymentId",'') ILIKE $${n}
-        OR p."providerOrderId" ILIKE $${n} OR COALESCE(p."receiptId",'') ILIKE $${n})`
-    );
+    // CNP-001 / CNA-001 style codes: strip the prefix and zeros so they match the numeric ids
+    const code = search.trim().match(/^(CNP|CNAP)-?0*(\d+)$/i);
+    if (code) {
+      params.push(`${code[1].toUpperCase()}-${code[2].padStart(3, "0")}`);
+      const col = code[1].toUpperCase() === "CNP" ? "pt.code" : "a.code";
+      conditions.push(`${col} = $${params.length}`);
+    } else {
+      params.push(`%${search.trim()}%`);
+      const n = params.length;
+      conditions.push(
+        `(pt.name ILIKE $${n} OR CAST(a.id AS TEXT) ILIKE $${n} OR a.code ILIKE $${n} OR pt.code ILIKE $${n} OR COALESCE(p."providerPaymentId",'') ILIKE $${n}
+          OR p."providerOrderId" ILIKE $${n} OR COALESCE(p."receiptId",'') ILIKE $${n})`
+      );
+    }
   }
   // the UI only shows one "Pending" option but Razorpay/our own schema has two pre-success
   // states ('created' = order made, checkout not opened yet; 'pending' = attempt in flight)

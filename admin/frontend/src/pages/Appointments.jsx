@@ -130,6 +130,8 @@ function Appointments() {
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
+              <th className="px-4 py-3">Appointment ID</th>
+              <th className="px-4 py-3">Patient ID</th>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">Doctor</th>
               <th className="px-4 py-3">Date & Time</th>
@@ -142,6 +144,8 @@ function Appointments() {
           <tbody>
             {appointmentData.map((appointment) => (
               <tr key={appointment.id} className="border-t border-gray-100">
+                <td className="px-4 py-3 tabular-nums">{appointment.code}</td>
+                <td className="px-4 py-3 tabular-nums">{appointment.patientCode}</td>
                 <td className="px-4 py-3 font-medium">{appointment.patientName}</td>
                 <td className="px-4 py-3">
                   {appointment.doctorName}
@@ -179,7 +183,7 @@ function Appointments() {
             ))}
             {appointmentData.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                   No appointments yet
                 </td>
               </tr>

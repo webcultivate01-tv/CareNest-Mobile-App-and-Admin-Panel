@@ -2,7 +2,7 @@ import { query } from "../config/database.js";
 
 // role: "admin" (exactly one, the owner of the panel) or "subadmin"
 // photo: path like "uploads/subadmins/Subadmin 1/profile-4-1792510081361.jpg" (see config/photos.js)
-const PUBLIC_FIELDS = `id, name, email, phone, role, "isBlocked", photo, "createdAt", "updatedAt"`;
+const PUBLIC_FIELDS = `id, name, email, phone, role, code, "isBlocked", photo, "createdAt", "updatedAt"`;
 
 export const createAdminTable = async () => {
   await query(`
@@ -23,7 +23,23 @@ export const createAdminTable = async () => {
   await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'subadmin'`);
   await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS "isBlocked" BOOLEAN NOT NULL DEFAULT false`);
   await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS photo TEXT`); // path under uploads/
+  // display ID: owner is CNA-001, sub-admins are CNSA-001, CNSA-002... (from a sequence, so a
+  // deleted sub-admin's number is never handed to someone else)
+  await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS code TEXT`);
+  await query(`CREATE SEQUENCE IF NOT EXISTS admin_subadmin_no_seq`);
   await ensurePrimaryAdmin();
+  await backfillAdminCodes();
+};
+
+const backfillAdminCodes = async () => {
+  await query(`UPDATE admins SET code = 'CNA-001' WHERE role = 'admin'`);
+  const { rows } = await query(`SELECT id FROM admins WHERE role = 'subadmin' AND code IS NULL ORDER BY id`);
+  for (const { id } of rows) {
+    await query(
+      `UPDATE admins SET code = 'CNSA-' || lpad(nextval('admin_subadmin_no_seq')::text, 3, '0') WHERE id = $1`,
+      [id]
+    );
+  }
 };
 
 // the oldest account becomes the admin when no admin exists yet
@@ -59,7 +75,8 @@ export const findAdmins = async () => {
 
 export const insertAdmin = async (name, email, password, phone) => {
   const { rows } = await query(
-    `INSERT INTO admins (name, email, password, phone, role) VALUES ($1, $2, $3, $4, 'subadmin')
+    `INSERT INTO admins (name, email, password, phone, role, code)
+     VALUES ($1, $2, $3, $4, 'subadmin', 'CNSA-' || lpad(nextval('admin_subadmin_no_seq')::text, 3, '0'))
      RETURNING ${PUBLIC_FIELDS}`,
     [name, email, password, phone || null]
   );

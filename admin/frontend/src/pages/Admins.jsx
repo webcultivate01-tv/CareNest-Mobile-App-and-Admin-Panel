@@ -189,7 +189,7 @@ function Admins() {
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-gray-400">
-              <th className="hidden sm:table-cell pl-5 pr-1 py-3 font-semibold w-10">No</th>
+              <th className="hidden sm:table-cell pl-5 pr-3 py-3 font-semibold">ID</th>
               <th className="px-3 py-3 font-semibold">Name</th>
               <th className="hidden sm:table-cell px-3 py-3 font-semibold">Mobile</th>
               <th className="hidden md:table-cell px-3 py-3 font-semibold">Email</th>
@@ -209,7 +209,7 @@ function Admins() {
                   }`}
                 >
                   <td className="hidden sm:table-cell pl-5 pr-1 py-3">
-                    <span className="text-sm font-bold text-emerald-900 tabular-nums">{index + 1}</span>
+                    <span className="text-sm font-bold text-emerald-900 tabular-nums whitespace-nowrap">{admin.code || index + 1}</span>
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-3 min-w-0">

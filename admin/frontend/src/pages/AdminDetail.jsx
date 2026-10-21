@@ -279,7 +279,7 @@ function AdminDetail() {
             <h2 className="text-base font-bold text-gray-900 mb-4">Account</h2>
             <dl className="space-y-3.5 text-sm">
               {[
-                { icon: <FiHash />, label: "Account ID", value: `#${String(admin.id).padStart(4, "0")}` },
+                { icon: <FiHash />, label: "Account ID", value: admin.code || `#${String(admin.id).padStart(4, "0")}` },
                 { icon: <FiShield />, label: "Role", value: isSub ? "Sub-admin" : "Admin" },
                 { icon: <FiCalendar />, label: "Member since", value: formatDate(admin.createdAt) },
                 { icon: <FiClock />, label: "Last updated", value: formatDateTime(admin.updatedAt) },

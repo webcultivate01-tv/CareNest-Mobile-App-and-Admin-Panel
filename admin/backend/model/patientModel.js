@@ -1,7 +1,7 @@
 import { query } from "../config/database.js";
 
 // never send the password hash to the admin panel / app (phone = mobile number)
-const publicColumns = `id, name, email, phone, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "createdAt", "updatedAt"`;
+const publicColumns = `id, name, email, phone, code, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "createdAt", "updatedAt"`;
 
 export const createPatientTable = async () => {
   await query(`
@@ -24,6 +24,16 @@ export const createPatientTable = async () => {
   await query(
     "CREATE UNIQUE INDEX IF NOT EXISTS patients_email_key ON patients (lower(email)) WHERE email IS NOT NULL"
   );
+  // display ID (CNP-001, CNP-002...): numbered in the order rows were created, from a sequence so a
+  // deleted row's number is never reused. The column default numbers every future insert.
+  await query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS code TEXT`);
+  await query(`CREATE SEQUENCE IF NOT EXISTS patient_no_seq`);
+  const { rows: uncoded } = await query(`SELECT id FROM patients WHERE code IS NULL ORDER BY "createdAt", id`);
+  for (const { id } of uncoded) {
+    await query(`UPDATE patients SET code = 'CNP-' || lpad(nextval('patient_no_seq')::text, 3, '0') WHERE id = $1`, [id]);
+  }
+  await query(`ALTER TABLE patients ALTER COLUMN code SET DEFAULT 'CNP-' || lpad(nextval('patient_no_seq')::text, 3, '0')`);
+  await query(`CREATE UNIQUE INDEX IF NOT EXISTS patients_code_key ON patients (code)`);
 };
 
 export const findPatients = async () => {

@@ -28,6 +28,16 @@ export const createAppointmentTable = async () => {
   // appointments made before fee snapshots existed: use the doctor's current fee once
   await query('UPDATE appointments a SET fee = d.fee FROM doctors d WHERE d.id = a."doctorId" AND a.fee IS NULL');
   await query('CREATE INDEX IF NOT EXISTS appointments_doctor_time_idx ON appointments ("doctorId", "scheduledAt")');
+  // display ID (CNAP-001, CNAP-002...): numbered in the order rows were created, from a sequence so a
+  // deleted row's number is never reused. The column default numbers every future insert.
+  await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS code TEXT`);
+  await query(`CREATE SEQUENCE IF NOT EXISTS appointment_no_seq`);
+  const { rows: uncoded } = await query(`SELECT id FROM appointments WHERE code IS NULL ORDER BY "createdAt", id`);
+  for (const { id } of uncoded) {
+    await query(`UPDATE appointments SET code = 'CNAP-' || lpad(nextval('appointment_no_seq')::text, 3, '0') WHERE id = $1`, [id]);
+  }
+  await query(`ALTER TABLE appointments ALTER COLUMN code SET DEFAULT 'CNAP-' || lpad(nextval('appointment_no_seq')::text, 3, '0')`);
+  await query(`CREATE UNIQUE INDEX IF NOT EXISTS appointments_code_key ON appointments (code)`);
   // last line of defence against double booking (bookings also take a per-doctor lock, see config/booking.js)
   try {
     await query(
@@ -41,7 +51,7 @@ export const createAppointmentTable = async () => {
 
 // joined with patient + doctor (same idea as .populate())
 const selectAppointment = `
-  SELECT a.*, p.name AS "patientName", d.name AS "doctorName", d.specialty AS "doctorSpecialty",
+  SELECT a.*, p.name AS "patientName", p.code AS "patientCode", d.name AS "doctorName", d.specialty AS "doctorSpecialty",
     d.photo AS "doctorPhoto"
   FROM appointments a
   JOIN patients p ON p.id = a."patientId"

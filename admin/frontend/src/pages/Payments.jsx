@@ -352,6 +352,7 @@ function Payments() {
             <tr>
               <th className="px-4 py-3">Date & Time</th>
               <th className="px-4 py-3">Transaction ID</th>
+              <th className="px-4 py-3">Patient ID</th>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">Appointment ID</th>
               <th className="px-4 py-3">Method</th>
@@ -363,14 +364,14 @@ function Payments() {
           <tbody>
             {listLoading && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center">
+                <td colSpan={9} className="px-4 py-10 text-center">
                   <ClipLoader size={28} color="#059669" />
                 </td>
               </tr>
             )}
             {!listLoading && listError && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-red-600">
+                <td colSpan={9} className="px-4 py-8 text-center text-red-600">
                   {listError}{" "}
                   <button onClick={loadList} className="underline ml-1">
                     Retry
@@ -380,7 +381,7 @@ function Payments() {
             )}
             {!listLoading && !listError && rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
                   {hasActiveFilters ? "No transactions match these filters" : "No transactions yet"}
                 </td>
               </tr>
@@ -393,8 +394,9 @@ function Payments() {
                   <td className="px-4 py-3">
                     <TxnIdCell value={row.providerPaymentId || row.providerOrderId} />
                   </td>
+                  <td className="px-4 py-3 tabular-nums">{row.patientCode}</td>
                   <td className="px-4 py-3 font-medium">{row.patientName}</td>
-                  <td className="px-4 py-3">{row.appointmentId}</td>
+                  <td className="px-4 py-3">{row.appointmentCode}</td>
                   <td className="px-4 py-3">{methodLabels[row.method] || row.method || "-"}</td>
                   <td className="px-4 py-3 tabular-nums">{money(row.amount)}</td>
                   <td className="px-4 py-3">

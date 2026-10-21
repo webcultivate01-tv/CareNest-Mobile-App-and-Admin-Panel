@@ -96,8 +96,9 @@ export const escapeCsvCell = (value) => {
 const csvColumns = [
   ["Transaction Date", (p) => new Date(p.capturedAt || p.createdAt).toISOString()],
   ["Transaction ID", (p) => p.providerPaymentId || p.providerOrderId],
+  ["Patient ID", (p) => p.patientCode],
   ["Patient Name", (p) => p.patientName],
-  ["Appointment ID", (p) => p.appointmentId],
+  ["Appointment ID", (p) => p.appointmentCode],
   ["Payment Method", (p) => p.method || ""],
   ["Gross Amount (INR)", (p) => Number(p.amount).toFixed(2)],
   ["Refund Amount (INR)", (p) => Number(p.refundedAmount).toFixed(2)],
