@@ -189,6 +189,12 @@ export const reconcilePayment = async (req, res) => {
   }
 };
 
+// patientName/doctorName etc. are user-supplied data rendered into an HTML page - without this,
+// a patient could put "<script>...</script>" in their name and have it execute in the admin's
+// browser (stored XSS) the moment an admin opens that payment's receipt
+export const escapeHtml = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 export const getPaymentReceipt = async (req, res) => {
   try {
     const payment = await findPaymentById(req.params.paymentId);
@@ -196,9 +202,9 @@ export const getPaymentReceipt = async (req, res) => {
       return res.status(400).json({ message: "No receipt is available for this payment" });
     }
     const net = Number(payment.amount) - Number(payment.refundedAmount);
-    const row = (label, value) => `<tr><td class="label">${label}</td><td>${value ?? "-"}</td></tr>`;
+    const row = (label, value) => `<tr><td class="label">${escapeHtml(label)}</td><td>${escapeHtml(value ?? "-")}</td></tr>`;
     const html = `<!doctype html><html><head><meta charset="utf-8" />
-      <title>Receipt ${payment.providerPaymentId || payment.id}</title>
+      <title>Receipt ${escapeHtml(payment.providerPaymentId || payment.id)}</title>
       <style>
         body { font-family: system-ui, sans-serif; color: #111827; padding: 32px; }
         h1 { font-size: 18px; margin-bottom: 4px; }

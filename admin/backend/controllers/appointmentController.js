@@ -7,6 +7,14 @@ import {
   recordReschedule,
   updateAppointmentById,
 } from "../model/appointmentModel.js";
+import { findDoctorById } from "../model/doctorModel.js";
+import { findPatientById } from "../model/patientModel.js";
+import { hasPaymentForAppointment } from "../model/paymentModel.js";
+
+// appointment/patient/doctor ids are Postgres SERIAL integers - rejecting anything else here
+// before it reaches the database avoids a raw "invalid input syntax for type integer" DB error
+// leaking out as an unhandled 500 (same convention as findBookableDoctor in bookingController.js)
+export const isValidId = (value) => /^\d+$/.test(String(value));
 
 // BookingError (config/booking.js) carries its own status code
 const sendError = (res, name, error) =>
@@ -28,6 +36,9 @@ export const createAppointment = async (req, res) => {
     const { patientId, doctorId, scheduledAt, status, notes } = req.body;
     if (!patientId || !doctorId || !scheduledAt) {
       return res.status(400).json({ message: "Patient, doctor and date are required" });
+    }
+    if (!isValidId(patientId) || !isValidId(doctorId)) {
+      return res.status(400).json({ message: "Invalid patient or doctor" });
     }
     if (status && !appointmentStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
@@ -52,6 +63,13 @@ export const editAppointment = async (req, res) => {
     const { appointmentId } = req.params;
     const { patientId, doctorId, scheduledAt, status, notes } = req.body;
 
+    if (!isValidId(appointmentId)) {
+      return res.status(404).json({ message: "Appointment is not found" });
+    }
+    if ((patientId && !isValidId(patientId)) || (doctorId && !isValidId(doctorId))) {
+      return res.status(400).json({ message: "Invalid patient or doctor" });
+    }
+
     const oldAppointment = await findAppointmentById(appointmentId);
     if (!oldAppointment) {
       return res.status(404).json({ message: "Appointment is not found" });
@@ -74,10 +92,20 @@ export const editAppointment = async (req, res) => {
       new Date(next.scheduledAt).getTime() !== new Date(oldAppointment.scheduledAt).getTime();
     const revived = oldAppointment.status === "cancelled" && next.status !== "cancelled";
 
-    const appointment =
-      next.status !== "cancelled" && (movedSlot || revived)
-        ? await saveAppointment({ id: oldAppointment.id, ...next })
-        : await updateAppointmentById(appointmentId, next);
+    let appointment;
+    if (next.status !== "cancelled" && (movedSlot || revived)) {
+      appointment = await saveAppointment({ id: oldAppointment.id, ...next });
+    } else {
+      // doctor/time are unchanged here, so updateAppointmentById (unlike saveAppointment) never
+      // checks patientId/doctorId exist - only needed when the caller actually changed one of them
+      if (Number(next.patientId) !== oldAppointment.patientId && !(await findPatientById(next.patientId))) {
+        return res.status(404).json({ message: "Patient is not found" });
+      }
+      if (Number(next.doctorId) !== oldAppointment.doctorId && !(await findDoctorById(next.doctorId))) {
+        return res.status(404).json({ message: "Doctor is not found" });
+      }
+      appointment = await updateAppointmentById(appointmentId, next);
+    }
     return res.status(200).json({ message: "Appointment updated successfully", appointment });
   } catch (error) {
     return sendError(res, "EditAppointment", error);
@@ -87,6 +115,16 @@ export const editAppointment = async (req, res) => {
 export const removeAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
+    if (!isValidId(appointmentId)) {
+      return res.status(404).json({ message: "Appointment is not found" });
+    }
+    // appointments cascade-delete their payments/refund history at the DB level, so a paid
+    // appointment must never be deleted this way - it would silently erase financial records
+    if (await hasPaymentForAppointment(appointmentId)) {
+      return res.status(409).json({
+        message: "This appointment has payment records and can not be deleted. Cancel it instead.",
+      });
+    }
     const appointment = await deleteAppointmentById(appointmentId);
     if (!appointment) {
       return res.status(404).json({ message: "Appointment is not found" });
@@ -102,6 +140,7 @@ export const rescheduleAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
     const { scheduledAt, reason } = req.body;
+    if (!isValidId(appointmentId)) return res.status(404).json({ message: "Appointment is not found" });
     if (!scheduledAt) return res.status(400).json({ message: "New date and time are required" });
     if (!reason || !reason.trim()) return res.status(400).json({ message: "Reason for rescheduling is required" });
 

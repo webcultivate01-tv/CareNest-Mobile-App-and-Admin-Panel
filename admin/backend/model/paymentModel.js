@@ -138,6 +138,14 @@ export const findExportRows = async (filters) => {
   return rows;
 };
 
+// true if this appointment has any payment attempt at all (even a failed/unpaid one) - used to
+// stop an appointment with payment history from being hard-deleted, since payments/payment_events
+// cascade-delete with their appointment and that history must never be silently erased
+export const hasPaymentForAppointment = async (appointmentId) => {
+  const { rows } = await query('SELECT 1 FROM payments WHERE "appointmentId" = $1 LIMIT 1', [appointmentId]);
+  return rows.length > 0;
+};
+
 export const findPaymentById = async (id) => {
   const { rows } = await query(`${selectPayment} WHERE p.id = $1`, [id]);
   return rows[0];
