@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { pool, query } from "../config/database.js";
 
 export const appointmentStatuses = ["pending", "confirmed", "completed", "cancelled"];
 
@@ -19,12 +19,19 @@ export const createAppointmentTable = async () => {
     )
   `);
   await query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS fee NUMERIC(10,2)");
+  // reschedule trail: why / when the last move happened, the time it moved from, and how many times
+  await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "rescheduleReason" TEXT');
+  await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "rescheduledAt" TIMESTAMPTZ');
+  await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "previousScheduledAt" TIMESTAMPTZ');
+  await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "rescheduleCount" INT NOT NULL DEFAULT 0');
   await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "durationMinutes" INT NOT NULL DEFAULT 15');
   // online payment state, written only by the payment webhook/verify/refund flow (see paymentModel.js) -
   // never by editAppointment/createAppointment, so admin-managed booking status is unaffected
   await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'pending'
     CHECK ("paymentStatus" IN ('pending','paid','failed','partially_refunded','refunded'))`);
   await query('CREATE INDEX IF NOT EXISTS appointments_payment_status_idx ON appointments ("paymentStatus")');
+  // appointments paid before payment confirmed the booking automatically
+  await query(`UPDATE appointments SET status = 'confirmed' WHERE "paymentStatus" = 'paid' AND status = 'pending'`);
   // appointments made before fee snapshots existed: use the doctor's current fee once
   await query('UPDATE appointments a SET fee = d.fee FROM doctors d WHERE d.id = a."doctorId" AND a.fee IS NULL');
   await query('CREATE INDEX IF NOT EXISTS appointments_doctor_time_idx ON appointments ("doctorId", "scheduledAt")');
@@ -51,7 +58,7 @@ export const createAppointmentTable = async () => {
 
 // joined with patient + doctor (same idea as .populate())
 const selectAppointment = `
-  SELECT a.*, p.name AS "patientName", p.code AS "patientCode", d.name AS "doctorName", d.specialty AS "doctorSpecialty",
+  SELECT a.*, p.name AS "patientName", p.code AS "patientCode", p.email AS "patientEmail", p.phone AS "patientPhone", d.name AS "doctorName", d.specialty AS "doctorSpecialty",
     d.photo AS "doctorPhoto"
   FROM appointments a
   JOIN patients p ON p.id = a."patientId"
@@ -86,7 +93,59 @@ export const updateAppointmentById = async (id, a) => {
   return findAppointmentById(id);
 };
 
-export const deleteAppointmentById = async (id) => {
+export const recordReschedule = async (id, { reason, previousScheduledAt }) => {
+  await query(
+    `UPDATE appointments SET "rescheduleReason" = $1, "rescheduledAt" = now(), "previousScheduledAt" = $2,
+       "rescheduleCount" = "rescheduleCount" + 1 WHERE id = $3`,
+    [reason, previousScheduledAt, id]
+  );
+  return findAppointmentById(id);
+};
+
+// Keeps display IDs gap-free: CNAP-001... in the order appointments were created, so after a delete
+// the later ones move up. Codes go through a temporary value first because the unique index is
+// checked row by row. The sequence is reset so the next booking continues from the last number.
+export const renumberAppointmentCodes = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("LOCK TABLE appointments IN SHARE ROW EXCLUSIVE MODE");
+    await client.query(`UPDATE appointments SET code = 'TMP-' || id`);
+    await client.query(
+      `UPDATE appointments a SET code = 'CNAP-' || lpad(n.rn::text, 3, '0')
+       FROM (SELECT id, row_number() OVER (ORDER BY "createdAt", id) AS rn FROM appointments) n
+       WHERE a.id = n.id`
+    );
+    await client.query(`SELECT setval('appointment_no_seq', GREATEST((SELECT count(*) FROM appointments), 1), (SELECT count(*) > 0 FROM appointments))`);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// Only appointments with a successful payment are kept. A booking holds its slot while the patient
+// is paying, so unpaid ones are removed only after `graceMinutes`; one with a captured payment row
+// is never touched, even if its paymentStatus has not caught up yet. Returns the number removed.
+export const deleteUnpaidAppointments = async (graceMinutes = 30) => {
+  const { rowCount } = await query(
+    `DELETE FROM appointments a
+     WHERE a."paymentStatus" IN ('pending','failed')
+       AND a."createdAt" < now() - ($1 * interval '1 minute')
+       AND NOT EXISTS (
+         SELECT 1 FROM payments p
+         WHERE p."appointmentId" = a.id AND p.status IN ('captured','partially_refunded','refunded')
+       )`,
+    [graceMinutes]
+  );
+  if (rowCount) await renumberAppointmentCodes();
+  return rowCount;
+};
+
+export const deleteAppointmentById =async (id) => {
   const { rows } = await query("DELETE FROM appointments WHERE id = $1 RETURNING id", [id]);
+  if (rows[0]) await renumberAppointmentCodes();
   return rows[0];
 };

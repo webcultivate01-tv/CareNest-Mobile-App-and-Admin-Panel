@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -6,6 +7,7 @@ import { ClipLoader } from "react-spinners";
 import { serverUrl } from "../App";
 import { setAppointmentData } from "../redux/appointmentSlice";
 import Modal from "../components/Modal";
+import PaymentStatusBadge from "../components/PaymentStatusBadge";
 
 const statuses = ["pending", "confirmed", "completed", "cancelled"];
 const statusColors = {
@@ -22,6 +24,7 @@ const formatSlot = (hhmm) => {
 
 function Appointments() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { appointmentData } = useSelector((state) => state.appointment);
   const { doctorData } = useSelector((state) => state.doctor);
   const { patientData } = useSelector((state) => state.patient);
@@ -29,6 +32,8 @@ function Appointments() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loading1, setLoading1] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("confirmed");
   const [slots, setSlots] = useState(null); // free slots for the chosen doctor + date (null = not loaded)
 
   // only valid, free slots can be picked; the server checks again when saving
@@ -98,7 +103,9 @@ function Appointments() {
       await axios.delete(serverUrl + `/api/appointment/remove/${appointmentId}`, {
         withCredentials: true,
       });
-      dispatch(setAppointmentData(appointmentData.filter((a) => a.id !== appointmentId)));
+      // reload: the remaining appointments are renumbered on the server
+      const refreshed = await axios.get(serverUrl + "/api/appointment/getappointments", { withCredentials: true });
+      dispatch(setAppointmentData(refreshed.data));
       setLoading1(null);
       toast.success("Appointment Removed Successfully", { position: "top-center", autoClose: 1000 });
     } catch (error) {
@@ -110,6 +117,26 @@ function Appointments() {
       });
     }
   };
+
+  // search matches name, email, phone, ids and the date (as dd/mm/yyyy, yyyy-mm-dd or "12 Oct 2026")
+  const query = search.trim().toLowerCase();
+  const filteredAppointments = appointmentData.filter((a) => {
+    if (statusFilter !== "all" && a.status !== statusFilter) return false;
+    if (!query) return true;
+    const d = new Date(a.scheduledAt);
+    const haystack = [
+      a.patientName,
+      a.patientEmail,
+      a.patientPhone,
+      a.patientCode,
+      a.code,
+      a.doctorName,
+      d.toLocaleDateString("en-GB"),
+      d.toLocaleDateString("en-CA"),
+      d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    ];
+    return haystack.some((v) => String(v ?? "").toLowerCase().includes(query));
+  });
 
   const inputClass =
     "w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500";
@@ -126,26 +153,64 @@ function Appointments() {
         </button>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, email, mobile, date..."
+          className="w-full md:w-1/2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
+        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {["all", ...statuses].map((status) => {
+            const count =
+              status === "all" ? appointmentData.length : appointmentData.filter((a) => a.status === status).length;
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize border transition ${
+                  statusFilter === status
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {status} ({count})
+              </button>
+            );
+          })}
+          {(search || statusFilter !== "all") && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+              }}
+              className="text-xs text-gray-500 hover:underline ml-1"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
               <th className="px-4 py-3">Appointment ID</th>
-              <th className="px-4 py-3">Patient ID</th>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">Doctor</th>
               <th className="px-4 py-3">Date & Time</th>
               <th className="px-4 py-3">Fee</th>
+              <th className="px-4 py-3">Payment</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Notes</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {appointmentData.map((appointment) => (
-              <tr key={appointment.id} className="border-t border-gray-100">
+            {filteredAppointments.map((appointment) => (
+              <tr key={appointment.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 tabular-nums">{appointment.code}</td>
-                <td className="px-4 py-3 tabular-nums">{appointment.patientCode}</td>
                 <td className="px-4 py-3 font-medium">{appointment.patientName}</td>
                 <td className="px-4 py-3">
                   {appointment.doctorName}
@@ -157,9 +222,16 @@ function Appointments() {
                   {appointment.fee == null ? "-" : `₹${Number(appointment.fee).toLocaleString("en-IN")}`}
                 </td>
                 <td className="px-4 py-3">
+                  <PaymentStatusBadge status={appointment.paymentStatus === "paid" ? "captured" : appointment.paymentStatus} />
+                </td>
+                <td className="px-4 py-3">
                   <select
                     value={appointment.status}
-                    onChange={(e) => handleChangeStatus(appointment.id, e.target.value)}
+                    onChange={(e) =>
+                      e.target.value === "reschedule"
+                        ? navigate(`/appointments/${appointment.id}?reschedule=1`)
+                        : handleChangeStatus(appointment.id, e.target.value)
+                    }
                     className={`rounded-full px-2 py-1 text-xs outline-none ${statusColors[appointment.status]}`}
                   >
                     {statuses.map((status) => (
@@ -167,24 +239,34 @@ function Appointments() {
                         {status}
                       </option>
                     ))}
+                    {(appointment.status === "pending" || appointment.status === "confirmed") && (
+                      <option value="reschedule">reschedule...</option>
+                    )}
                   </select>
                 </td>
-                <td className="px-4 py-3 text-gray-500">{appointment.notes || "-"}</td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => handleRemoveAppointment(appointment.id)}
-                    disabled={loading1 === appointment.id}
-                    className="text-red-600 hover:underline"
-                  >
-                    {loading1 === appointment.id ? <ClipLoader size={14} color="red" /> : "Delete"}
-                  </button>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => navigate(`/appointments/${appointment.id}`)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleRemoveAppointment(appointment.id)}
+                      disabled={loading1 === appointment.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition min-w-[60px] flex items-center justify-center disabled:opacity-60"
+                    >
+                      {loading1 === appointment.id ? <ClipLoader size={12} color="red" /> : "Delete"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {appointmentData.length === 0 && (
+            {filteredAppointments.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
-                  No appointments yet
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                  {appointmentData.length === 0 ? "No appointments yet" : "No appointments match your search"}
                 </td>
               </tr>
             )}

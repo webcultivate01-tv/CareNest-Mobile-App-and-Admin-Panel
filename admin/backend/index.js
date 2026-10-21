@@ -15,6 +15,7 @@ import paymentRouter from "./routes/paymentRoute.js";
 import refundRouter from "./routes/refundRoute.js";
 import webhookRouter from "./routes/webhookRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
+import { deleteUnpaidAppointments, renumberAppointmentCodes } from "./model/appointmentModel.js";
 
 dotenv.config();
 fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // profile photos: admin/uploads/<patients|admins|subadmins>/<name>/
@@ -47,5 +48,14 @@ app.get("/", (req, res) => res.send("CareNest Admin API"));
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
-  connectDB();
+  connectDB().then(() => {
+    // only successfully paid appointments are kept: clear unpaid ones now and every 5 minutes
+    const sweep = () =>
+      deleteUnpaidAppointments()
+        .then((count) => count && console.log(`Removed ${count} unpaid appointment(s)`))
+        .catch((error) => console.log(`Unpaid appointment cleanup error ${error.message}`));
+    renumberAppointmentCodes().catch((error) => console.log(`Appointment renumber error ${error.message}`));
+    sweep();
+    setInterval(sweep, 5 * 60 * 1000);
+  });
 });

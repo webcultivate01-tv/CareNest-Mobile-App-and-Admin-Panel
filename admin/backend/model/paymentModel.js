@@ -268,9 +268,14 @@ export const applyPaymentCaptured = async (entity) => {
          WHERE id = $3`,
         [entity.id, entity.method || null, payment.id]
       );
-      await client.query(`UPDATE appointments SET "paymentStatus" = 'paid', "updatedAt" = now() WHERE id = $1`, [
-        payment.appointmentId,
-      ]);
+      // a successful payment confirms the booking; only a pending one moves, so a cancelled or
+      // completed appointment is never revived by a late webhook
+      await client.query(
+        `UPDATE appointments SET "paymentStatus" = 'paid',
+           status = CASE WHEN status = 'pending' THEN 'confirmed' ELSE status END, "updatedAt" = now()
+         WHERE id = $1`,
+        [payment.appointmentId]
+      );
     }
     await client.query("COMMIT");
     return findPaymentById(payment.id);

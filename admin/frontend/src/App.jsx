@@ -10,6 +10,7 @@ import DoctorDetail from "./pages/DoctorDetail";
 import DoctorAvailability from "./pages/DoctorAvailability";
 import Patients from "./pages/Patients";
 import Appointments from "./pages/Appointments";
+import AppointmentDetail from "./pages/AppointmentDetail";
 import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
 import Refunds from "./pages/Refunds";
@@ -60,6 +61,7 @@ function App() {
           <Route path="/doctors/:doctorId/availability" element={<DoctorAvailability />} />
           <Route path="/patients" element={<Patients />} />
           <Route path="/appointments" element={<Appointments />} />
+          <Route path="/appointments/:appointmentId" element={<AppointmentDetail />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/payments/:paymentId" element={<PaymentDetail />} />
           <Route path="/refunds" element={<Refunds />} />

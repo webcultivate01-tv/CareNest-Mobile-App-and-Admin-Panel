@@ -4,6 +4,7 @@ import {
   deleteAppointmentById,
   findAppointmentById,
   findAppointments,
+  recordReschedule,
   updateAppointmentById,
 } from "../model/appointmentModel.js";
 
@@ -93,5 +94,37 @@ export const removeAppointment = async (req, res) => {
     return res.status(200).json({ message: "Appointment removed successfully" });
   } catch (error) {
     return res.status(500).json({ message: `RemoveAppointment error ${error.message}` });
+  }
+};
+
+// move an appointment to a new slot (same doctor), keeping the reason the patient gave
+export const rescheduleAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { scheduledAt, reason } = req.body;
+    if (!scheduledAt) return res.status(400).json({ message: "New date and time are required" });
+    if (!reason || !reason.trim()) return res.status(400).json({ message: "Reason for rescheduling is required" });
+
+    const old = await findAppointmentById(appointmentId);
+    if (!old) return res.status(404).json({ message: "Appointment is not found" });
+    if (old.status === "cancelled" || old.status === "completed") {
+      return res.status(400).json({ message: `A ${old.status} appointment can not be rescheduled` });
+    }
+    if (new Date(scheduledAt).getTime() === new Date(old.scheduledAt).getTime()) {
+      return res.status(400).json({ message: "Choose a different time than the current one" });
+    }
+
+    await saveAppointment({
+      id: old.id,
+      patientId: old.patientId,
+      doctorId: old.doctorId,
+      scheduledAt,
+      status: old.status,
+      notes: old.notes,
+    });
+    const appointment = await recordReschedule(old.id, { reason: reason.trim(), previousScheduledAt: old.scheduledAt });
+    return res.status(200).json({ message: "Appointment rescheduled successfully", appointment });
+  } catch (error) {
+    return sendError(res, "RescheduleAppointment", error);
   }
 };
