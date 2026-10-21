@@ -20,6 +20,11 @@ export const createAppointmentTable = async () => {
   `);
   await query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS fee NUMERIC(10,2)");
   await query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "durationMinutes" INT NOT NULL DEFAULT 15');
+  // online payment state, written only by the payment webhook/verify/refund flow (see paymentModel.js) -
+  // never by editAppointment/createAppointment, so admin-managed booking status is unaffected
+  await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'pending'
+    CHECK ("paymentStatus" IN ('pending','paid','failed','partially_refunded','refunded'))`);
+  await query('CREATE INDEX IF NOT EXISTS appointments_payment_status_idx ON appointments ("paymentStatus")');
   // appointments made before fee snapshots existed: use the doctor's current fee once
   await query('UPDATE appointments a SET fee = d.fee FROM doctors d WHERE d.id = a."doctorId" AND a.fee IS NULL');
   await query('CREATE INDEX IF NOT EXISTS appointments_doctor_time_idx ON appointments ("doctorId", "scheduledAt")');

@@ -1,7 +1,8 @@
 // The full "Book Appointment" flow, shown as one full-screen page with 4 steps:
 //   doctors -> details (day, time, disease) -> payment (fee summary) -> success
 // Opened from Quick Access (no doctor yet) or by tapping a doctor card (doctor already chosen).
-// Payment is simulated for now: tapping Pay books the appointment straight away.
+// Payment is real: the appointment is booked as "pending", then paid for through Razorpay
+// (order created server-side, checkout shown in a WebView, signature verified server-side).
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,11 +19,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { bookAppointment, getDoctorDays, getDoctorSlots, getDoctors, getToken } from '../api';
+import { bookAppointment, createPaymentOrder, getDoctorDays, getDoctorSlots, getDoctors, getToken, verifyPayment } from '../api';
 import DoctorCard, { formatTime } from './DoctorCard';
+import RazorpayCheckout from './RazorpayCheckout';
 
-const PLATFORM_FEE = 20; // rupees
-const GST_RATE = 0.05; // charged on consultation fee + platform fee
 const SUCCESS_GREEN = '#1FA64A';
 
 const DISEASES = [
@@ -34,13 +34,6 @@ const DISEASES = [
 ];
 
 const money = (n) => `₹${n.toFixed(2)}`;
-
-// fee breakdown shown on the payment step
-const feeBreakup = (fee) => {
-  const consultation = Number(fee);
-  const gst = Math.round((consultation + PLATFORM_FEE) * GST_RATE * 100) / 100;
-  return { consultation, platform: PLATFORM_FEE, gst, total: consultation + PLATFORM_FEE + gst };
-};
 
 const dayLabel = (date) => {
   const d = new Date(`${date}T00:00:00`);
@@ -74,6 +67,9 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null); // the booked appointment, for the success page
+  const [bookedAppointment, setBookedAppointment] = useState(null); // set once bookAppointment succeeds
+  const [order, setOrder] = useState(null); // Razorpay order details for the checkout WebView
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const pickDoctor = async (d) => {
     setDoctor(d);
@@ -101,6 +97,9 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
     setResult(null);
     setError('');
     setPaying(false);
+    setBookedAppointment(null);
+    setOrder(null);
+    setShowCheckout(false);
     if (startDoctor) {
       pickDoctor(startDoctor);
       return;
@@ -151,21 +150,59 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
     setStep('payment');
   };
 
+  // Tapping "Pay": book the appointment (once) then create/reuse a Razorpay order and open
+  // checkout. Retrying after a cancelled/failed attempt re-uses the same booked appointment and
+  // order instead of booking a second time.
   const pay = async () => {
     setPaying(true);
     setError('');
     try {
-      await new Promise((r) => setTimeout(r, 1200)); // pretend to process the payment
+      const token = await getToken();
+      let appointment = bookedAppointment;
+      if (!appointment) {
+        const reason = disease === 'Other' ? `Other: ${otherText.trim()}` : disease;
+        const booked = await bookAppointment(token, doctor.id, slot.startsAt, reason);
+        appointment = booked.appointment;
+        setBookedAppointment(appointment);
+      }
+      const newOrder = await createPaymentOrder(token, appointment.id);
+      setOrder(newOrder);
+      setShowCheckout(true);
+    } catch (e) {
+      setError(e.message);
+      if (!bookedAppointment) {
+        // the slot may have just been taken: go back so the user can choose another
+        setStep('details');
+        loadSlots(date);
+      }
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // Result from RazorpayCheckout's WebView: 'success' (verify with the backend), 'cancel' (user
+  // closed the sheet) or 'failed' (Razorpay itself reported a failure) - either way the booked
+  // appointment stays pending/unpaid and the same "Pay" button can be tapped again to retry.
+  const handleCheckoutMessage = async (msg) => {
+    setShowCheckout(false);
+    if (msg.type === 'cancel') {
+      setError('Payment was cancelled. You can try again.');
+      return;
+    }
+    if (msg.type === 'failed') {
+      setError(msg.description || 'Payment failed. You can try again.');
+      return;
+    }
+    setPaying(true);
+    try {
+      const token = await getToken();
+      const { appointment } = await verifyPayment(token, { orderId: msg.orderId, paymentId: msg.paymentId, signature: msg.signature });
       const reason = disease === 'Other' ? `Other: ${otherText.trim()}` : disease;
-      const { appointment } = await bookAppointment(await getToken(), doctor.id, slot.startsAt, reason);
-      setResult({ id: appointment?.id, total: feeBreakup(doctor.fee).total, reason });
+      setResult({ id: appointment?.id, total: Number(doctor.fee), reason });
       setStep('success');
       onBooked?.();
     } catch (e) {
       setError(e.message);
-      // the slot may have just been taken: go back so the user can choose another
-      setStep('details');
-      loadSlots(date);
     } finally {
       setPaying(false);
     }
@@ -297,19 +334,17 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
                   <FeeTable fee={doctor.fee} />
 
                   <Text style={styles.note}>
-                    Demo payment: no real money is charged. Your appointment is booked as soon as you pay.
+                    You'll be taken to Razorpay's secure checkout to complete payment.
                   </Text>
                   {error ? <Text style={styles.error}>{error}</Text> : null}
                 </ScrollView>
-                <Footer
-                  label={`Pay ${money(feeBreakup(doctor.fee).total)} & Book Appointment`}
-                  onPress={pay}
-                  busy={paying}
-                />
+                <Footer label={`Pay ${money(Number(doctor.fee))} & Book Appointment`} onPress={pay} busy={paying} />
               </>
             )}
           </>
         )}
+
+        <RazorpayCheckout visible={showCheckout} order={order} onMessage={handleCheckoutMessage} />
       </SafeAreaView>
     </Modal>
   );
@@ -345,14 +380,12 @@ function Line({ icon, label, value }) {
 }
 
 function FeeTable({ fee }) {
-  const b = feeBreakup(fee);
+  const consultation = Number(fee);
   return (
     <View style={styles.card}>
-      <Fee label="Consultation fee" value={money(b.consultation)} />
-      <Fee label="Platform fee" value={money(b.platform)} />
-      <Fee label={`GST (${GST_RATE * 100}%)`} value={money(b.gst)} />
+      <Fee label="Consultation fee" value={money(consultation)} />
       <View style={styles.feeDivider} />
-      <Fee label="Total amount" value={money(b.total)} bold />
+      <Fee label="Total amount" value={money(consultation)} bold />
     </View>
   );
 }

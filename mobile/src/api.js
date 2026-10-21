@@ -116,3 +116,13 @@ export const bookAppointment = (token, doctorId, scheduledAt, notes) =>
 
 // [{ id, doctorName, doctorSpecialty, doctorPhoto, scheduledAt, status, notes, fee }] newest first
 export const getMyAppointments = (token) => request('/api/user/myappointments', { token });
+
+// ---- payment (Razorpay) ----
+
+// { orderId, amount, currency, keyId, name, email, contact } - open RazorpayCheckout with these
+export const createPaymentOrder = (token, appointmentId) =>
+  request('/api/user/payment/order', { method: 'POST', token, body: { appointmentId } });
+
+// { orderId, paymentId, signature } from the checkout success handler
+export const verifyPayment = (token, { orderId, paymentId, signature }) =>
+  request('/api/user/payment/verify', { method: 'POST', token, body: { orderId, paymentId, signature } });

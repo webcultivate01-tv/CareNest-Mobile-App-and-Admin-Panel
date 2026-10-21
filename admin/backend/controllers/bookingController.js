@@ -1,7 +1,16 @@
 import { addDays, clinicToday, getDaySlots, isValidDateString, saveAppointment } from "../config/booking.js";
 import { photoUrl } from "../config/photos.js";
-import { findAppointmentsByPatient } from "../model/appointmentModel.js";
+import { razorpay, verifyCheckoutSignature } from "../config/razorpay.js";
+import { findAppointmentById, findAppointmentsByPatient } from "../model/appointmentModel.js";
 import { findAllSchedules, findDoctorById, findDoctors } from "../model/doctorModel.js";
+import { findPatientById } from "../model/patientModel.js";
+import {
+  applyPaymentCaptured,
+  applyPaymentFailed,
+  findPaymentByOrderId,
+  findReusableOrderForAppointment,
+  insertPaymentOrder,
+} from "../model/paymentModel.js";
 
 // Patient (mobile app) side of booking. Patients can only read doctors and book / list
 // their own appointments; nothing here changes a doctor, schedule or fee.
@@ -125,5 +134,94 @@ export const getMyAppointments = async (req, res) => {
     return res.status(200).json(appointments.map((a) => ({ ...a, doctorPhoto: photoUrl(req, a.doctorPhoto) })));
   } catch (error) {
     return res.status(500).json({ message: `GetMyAppointments error ${error.message}` });
+  }
+};
+
+// body: { appointmentId }. Creates (or reuses, on retry) a Razorpay order for an already-booked
+// appointment. The order amount always comes from the appointment's own fee snapshot, never from
+// the client, so a tampered client request can not change what gets charged.
+export const createPaymentOrder = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    if (!appointmentId) {
+      return res.status(400).json({ message: "Appointment is required" });
+    }
+    const appointment = await findAppointmentById(appointmentId);
+    if (!appointment || appointment.patientId !== req.userId) {
+      return res.status(404).json({ message: "Appointment is not found" });
+    }
+    if (!["pending", "failed"].includes(appointment.paymentStatus)) {
+      return res.status(400).json({ message: `This appointment's payment is already ${appointment.paymentStatus}` });
+    }
+
+    let payment = await findReusableOrderForAppointment(appointmentId);
+    if (!payment) {
+      const receiptId = `apt_${appointmentId}_${Date.now()}`;
+      const order = await razorpay.orders.create({
+        amount: Math.round(Number(appointment.fee) * 100), // paise; rupees everywhere else in this app
+        currency: "INR",
+        receipt: receiptId,
+        payment_capture: 1, // auto-capture on success, so a "captured" webhook/fetch is guaranteed
+        notes: { appointmentId: String(appointmentId), patientId: String(req.userId) },
+      });
+      payment = await insertPaymentOrder({
+        appointmentId,
+        patientId: req.userId,
+        providerOrderId: order.id,
+        amount: appointment.fee,
+        currency: "INR",
+        receiptId,
+      });
+    }
+
+    const patient = await findPatientById(req.userId);
+    return res.status(200).json({
+      orderId: payment.providerOrderId,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      name: patient?.name,
+      email: patient?.email || undefined,
+      contact: patient?.phone || undefined,
+    });
+  } catch (error) {
+    return sendError(res, "CreatePaymentOrder", error);
+  }
+};
+
+// body: { orderId, paymentId, signature } from the WebView checkout's success handler. The
+// signature proves Razorpay issued this triple; we then re-fetch the payment from Razorpay's API
+// (rather than trusting the client's claim of success) before marking anything captured.
+export const verifyPayment = async (req, res) => {
+  try {
+    const { orderId, paymentId, signature } = req.body;
+    if (!orderId || !paymentId || !signature) {
+      return res.status(400).json({ message: "Missing payment details" });
+    }
+    const payment = await findPaymentByOrderId(orderId);
+    if (!payment || payment.patientId !== req.userId) {
+      return res.status(404).json({ message: "Payment is not found" });
+    }
+    if (!verifyCheckoutSignature(orderId, paymentId, signature)) {
+      return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    const entity = await razorpay.payments.fetch(paymentId);
+    if (entity.order_id !== orderId) {
+      return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    if (entity.status === "captured") {
+      const updated = await applyPaymentCaptured(entity);
+      const appointment = updated ? await findAppointmentById(updated.appointmentId) : null;
+      return res.status(200).json({ message: "Payment verified", appointment, payment: updated });
+    }
+    if (entity.status === "failed") {
+      await applyPaymentFailed(entity);
+      return res.status(400).json({ message: entity.error_description || "Payment failed" });
+    }
+    return res.status(202).json({ message: "Payment is still processing. Please wait a moment and refresh." });
+  } catch (error) {
+    return sendError(res, "VerifyPayment", error);
   }
 };

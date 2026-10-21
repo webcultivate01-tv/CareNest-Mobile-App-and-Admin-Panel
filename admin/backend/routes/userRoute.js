@@ -3,10 +3,12 @@ import { deletePhoto, getCurrentUser, login, signUp, updateProfile, uploadPhoto 
 import isUserAuth from "../middleware/isUserAuth.js";
 import {
   bookAppointment,
+  createPaymentOrder,
   getBookableDoctors,
   getDoctorDays,
   getDoctorSlots,
   getMyAppointments,
+  verifyPayment,
 } from "../controllers/bookingController.js";
 import receivePhoto from "../middleware/receivePhoto.js";
 
@@ -26,5 +28,9 @@ userRouter.get("/doctordays/:doctorId", isUserAuth, getDoctorDays);
 userRouter.get("/doctorslots/:doctorId", isUserAuth, getDoctorSlots); // ?date=YYYY-MM-DD
 userRouter.post("/bookappointment", isUserAuth, bookAppointment);
 userRouter.get("/myappointments", isUserAuth, getMyAppointments);
+
+// payment for an already-booked appointment (see bookingController.js)
+userRouter.post("/payment/order", isUserAuth, createPaymentOrder);
+userRouter.post("/payment/verify", isUserAuth, verifyPayment);
 
 export default userRouter;
