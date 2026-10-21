@@ -314,7 +314,13 @@ export const applyPaymentFailed = async (entity) => {
   }
 };
 
-// refundEntity = the Razorpay refund entity (has .id, .amount in paise, .payment_id)
+// refundEntity = the Razorpay refund entity (has .id, .amount in paise, .payment_id, .status).
+// Razorpay's refund.status is one of 'pending' (queued, e.g. slower bank-transfer refunds),
+// 'processed' (money actually moved) or 'failed' - a refund being CREATED is not the same as it
+// being PROCESSED, so only 'processed' is allowed to touch payments.refundedAmount / status below.
+// The dedupeKey includes the status (not just the refund id) so a later webhook that moves the
+// SAME refund from pending -> processed (or -> failed) is recorded as a new event instead of
+// being skipped as a duplicate of the earlier pending one.
 export const applyRefund = async (refundEntity) => {
   const client = await pool.connect();
   try {
@@ -327,8 +333,15 @@ export const applyRefund = async (refundEntity) => {
       await client.query("ROLLBACK");
       return null;
     }
-    const isNew = await recordEventOrSkip(client, payment.id, "refund", `refund:${refundEntity.id}`, refundEntity);
-    if (isNew && ["captured", "partially_refunded"].includes(payment.status)) {
+    const status = refundEntity.status || "pending";
+    const isNew = await recordEventOrSkip(
+      client,
+      payment.id,
+      `refund.${status}`,
+      `refund:${refundEntity.id}:${status}`,
+      refundEntity
+    );
+    if (isNew && status === "processed" && ["captured", "partially_refunded"].includes(payment.status)) {
       const refundRupees = Number(refundEntity.amount) / 100;
       const newRefunded = Number(payment.refundedAmount) + refundRupees;
       const newStatus = newRefunded >= Number(payment.amount) ? "refunded" : "partially_refunded";

@@ -62,7 +62,8 @@ function TxnIdCell({ value }) {
     <div className="flex items-center gap-1.5 font-mono text-xs">
       <span title={value}>{short}</span>
       <button
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           navigator.clipboard?.writeText(value);
           toast.success("Copied", { position: "top-center", autoClose: 800 });
         }}
@@ -389,7 +390,11 @@ function Payments() {
             {!listLoading &&
               !listError &&
               rows.map((row) => (
-                <tr key={row.id} className="border-t border-gray-100 hover:bg-gray-50">
+                <tr
+                  key={row.id}
+                  onClick={() => navigate(`/payments/${row.id}`)}
+                  className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-4 py-3 whitespace-nowrap">{new Date(row.capturedAt || row.createdAt).toLocaleString("en-IN")}</td>
                   <td className="px-4 py-3">
                     <TxnIdCell value={row.providerPaymentId || row.providerOrderId} />
@@ -403,7 +408,13 @@ function Payments() {
                     <PaymentStatusBadge status={row.status} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => navigate(`/payments/${row.id}`)} className="text-emerald-600 hover:underline">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/payments/${row.id}`);
+                      }}
+                      className="text-emerald-600 hover:underline"
+                    >
                       View Details
                     </button>
                   </td>

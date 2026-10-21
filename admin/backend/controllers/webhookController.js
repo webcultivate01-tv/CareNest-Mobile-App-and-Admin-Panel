@@ -19,7 +19,9 @@ export const handleRazorpayWebhook = async (req, res) => {
       await applyPaymentCaptured(payment);
     } else if (event.event === "payment.failed" && payment) {
       await applyPaymentFailed(payment);
-    } else if ((event.event === "refund.processed" || event.event === "refund.created") && refund) {
+    } else if (refund) {
+      // covers refund.created / refund.processed / refund.failed / refund.speed_changed - applyRefund
+      // itself decides what to do based on refund.status, so every refund-related event is safe to pass through
       await applyRefund(refund);
     }
     // any other event type is acknowledged but ignored - Razorpay only needs a 200 to stop retrying

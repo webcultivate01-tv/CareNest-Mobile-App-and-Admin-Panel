@@ -12,6 +12,8 @@ import Patients from "./pages/Patients";
 import Appointments from "./pages/Appointments";
 import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
+import Refunds from "./pages/Refunds";
+import IssueRefund from "./pages/IssueRefund";
 import Admins from "./pages/Admins";
 import AdminDetail from "./pages/AdminDetail";
 import Profile from "./pages/Profile";
@@ -60,6 +62,8 @@ function App() {
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/payments/:paymentId" element={<PaymentDetail />} />
+          <Route path="/refunds" element={<Refunds />} />
+          <Route path="/refunds/new" element={<IssueRefund />} />
           <Route path="/admins" element={<Admins />} />
           <Route path="/admins/:adminId" element={<AdminDetail />} />
           <Route path="/reports" element={<Reports />} />

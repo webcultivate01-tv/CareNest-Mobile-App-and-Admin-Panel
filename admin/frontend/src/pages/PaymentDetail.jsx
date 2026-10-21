@@ -15,7 +15,10 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString("en-IN") : "-");
 const eventLabels = {
   "payment.captured": "Payment captured",
   "payment.failed": "Payment failed",
-  refund: "Refund processed",
+  "refund.processed": "Refund processed",
+  "refund.pending": "Refund processing",
+  "refund.created": "Refund submitted",
+  "refund.failed": "Refund failed",
 };
 
 function CopyField({ label, value }) {
@@ -103,7 +106,8 @@ function PaymentDetail() {
         { amount: refundAmount || undefined, reason: refundReason || undefined },
         { withCredentials: true }
       );
-      toast.success(result.data.message || "Refund processed", { position: "top-center", autoClose: 1500 });
+      const toastFn = result.data.refundStatus === "failed" ? toast.error : toast.success;
+      toastFn(result.data.message || "Refund submitted", { position: "top-center", autoClose: 1500 });
       setShowRefund(false);
       setRefundAmount("");
       setRefundReason("");

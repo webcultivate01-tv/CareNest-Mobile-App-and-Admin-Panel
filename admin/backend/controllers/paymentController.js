@@ -144,7 +144,15 @@ export const refundPayment = async (req, res) => {
       notes: { reason: req.body.reason ? String(req.body.reason).slice(0, 300) : "", refundedBy: String(req.adminId) },
     });
     const updated = await applyRefund(refund);
-    return res.status(200).json({ message: "Refund processed", payment: updated });
+    // Razorpay can return the refund still "pending" (queued, e.g. bank-transfer refunds) - only
+    // a "processed" status means the money has actually moved, so the response must say so.
+    const message =
+      refund.status === "processed"
+        ? "Refund processed successfully"
+        : refund.status === "failed"
+        ? "Refund could not be processed"
+        : "Refund submitted and is being processed";
+    return res.status(200).json({ message, refundStatus: refund.status, payment: updated });
   } catch (error) {
     return sendError(res, "RefundPayment", error);
   }

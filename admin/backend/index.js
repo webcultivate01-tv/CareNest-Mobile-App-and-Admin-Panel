@@ -12,6 +12,7 @@ import dashboardRouter from "./routes/dashboardRoute.js";
 import userRouter from "./routes/userRoute.js";
 import adminRouter from "./routes/adminRoute.js";
 import paymentRouter from "./routes/paymentRoute.js";
+import refundRouter from "./routes/refundRoute.js";
 import webhookRouter from "./routes/webhookRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
 
@@ -38,6 +39,7 @@ app.use("/api/appointment", appointmentRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/payment", paymentRouter);
+app.use("/api/refund", refundRouter);
 app.use("/api/webhook", webhookRouter);
 app.use("/api/user", userRouter); // mobile app: signup / login
 
