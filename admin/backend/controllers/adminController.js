@@ -11,8 +11,10 @@ import {
   updateAdminBlocked,
   updateAdminById,
   updateAdminPassword,
+  updateAdminPermissions,
 } from "../model/adminModel.js";
 import { movePhoto, removePhotoFile, savePhoto } from "../config/photos.js";
+import { DEFAULT_MODULES, cleanModules } from "../config/modules.js";
 
 const isValidPhone = (phone) => !phone || /^\+?[0-9\s-]{7,15}$/.test(phone.trim());
 
@@ -36,7 +38,7 @@ export const getAdmins = async (req, res) => {
 
 export const createAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, permissions } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
     }
@@ -57,7 +59,8 @@ export const createAdmin = async (req, res) => {
     }
 
     const hashPassword = await bcrypt.hash(password, 10);
-    const admin = await insertAdmin(name.trim(), cleanEmail, hashPassword, phone?.trim());
+    const modules = permissions === undefined ? DEFAULT_MODULES : cleanModules(permissions);
+    const admin = await insertAdmin(name.trim(), cleanEmail, hashPassword, phone?.trim(), modules);
     return res.status(201).json({ message: "Sub-admin created successfully", admin });
   } catch (error) {
     return res.status(500).json({ message: `CreateAdmin error ${error.message}` });
@@ -134,6 +137,24 @@ export const setAdminBlocked = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: `SetAdminBlocked error ${error.message}` });
+  }
+};
+
+export const setAdminPermissions = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { permissions } = req.body;
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ message: "permissions must be a list of modules" });
+    }
+
+    const admin = await updateAdminPermissions(adminId, cleanModules(permissions));
+    if (!admin) {
+      return res.status(404).json({ message: "Sub-admin is not found" });
+    }
+    return res.status(200).json({ message: "Module access updated", admin });
+  } catch (error) {
+    return res.status(500).json({ message: `SetAdminPermissions error ${error.message}` });
   }
 };
 

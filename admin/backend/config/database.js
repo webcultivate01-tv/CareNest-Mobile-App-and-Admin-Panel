@@ -5,6 +5,7 @@ import { createDoctorTable } from "../model/doctorModel.js";
 import { createPatientTable } from "../model/patientModel.js";
 import { createAppointmentTable } from "../model/appointmentModel.js";
 import { createPaymentTable } from "../model/paymentModel.js";
+import { createNotificationTable } from "../model/notificationModel.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ const connectDB = async () => {
     await createPatientTable();
     await createAppointmentTable();
     await createPaymentTable();
+    await createNotificationTable(); // patient notification inbox + password reset codes
     console.log("DB Connected");
   } catch (error) {
     console.log(`DB error ${error.message}`);

@@ -79,6 +79,28 @@ export const findPatientForLogin = async (identifier) => {
   return rows[0];
 };
 
+// forgot password: the reset code is sent to the registered email only, never to a phone number.
+// Returns the row WITH the password hash (the caller checks the account can actually sign in).
+export const findPatientByEmail = async (email) => {
+  const { rows } = await query("SELECT * FROM patients WHERE lower(email) = lower($1) LIMIT 1", [email]);
+  return rows[0];
+};
+
+// the row WITH the password hash (findPatientById deliberately hides it) - used when a signed-in
+// patient changes their password and the current one has to be checked
+export const findPatientWithPasswordById = async (id) => {
+  const { rows } = await query("SELECT * FROM patients WHERE id = $1", [id]);
+  return rows[0];
+};
+
+export const setPatientPassword = async (id, passwordHash) => {
+  const { rows } = await query(
+    `UPDATE patients SET password = $1, "updatedAt" = now() WHERE id = $2 RETURNING ${publicColumns}`,
+    [passwordHash, id]
+  );
+  return rows[0];
+};
+
 export const findPatientByPhoneOrEmail = async (phone, email) => {
   const { rows } = await query(
     "SELECT id FROM patients WHERE phone = $1 OR ($2::text IS NOT NULL AND lower(email) = lower($2)) LIMIT 1",

@@ -8,6 +8,7 @@ import { FiCopy, FiEye, FiEyeOff, FiKey, FiLock, FiRefreshCw, FiShield, FiSlash,
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
 import { setAdminData, setAdminListData } from "../redux/adminSlice";
+import { MODULES } from "../modules";
 
 // Shared building blocks for the Admin Management list and detail pages.
 
@@ -381,5 +382,60 @@ export function AdminActionDialog({ type, admin, onClose, onDone }) {
         </div>
       </div>
     </Dialog>
+  );
+}
+
+// checklist of panel modules; `value` is the list of enabled module keys
+export function ModulePicker({ value, onChange, disabled }) {
+  const toggle = (key) => onChange(value.includes(key) ? value.filter((k) => k !== key) : [...value, key]);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-semibold text-gray-700">Module access</p>
+        <div className="flex gap-3 text-xs font-semibold">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(MODULES.map((m) => m.key))}
+            className="text-emerald-700 hover:underline disabled:opacity-50"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange([])}
+            className="text-gray-500 hover:underline disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {MODULES.map((m) => {
+          const on = value.includes(m.key);
+          return (
+            <label
+              key={m.key}
+              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                on ? "border-emerald-300 bg-emerald-50/60" : "border-gray-200 hover:bg-gray-50"
+              } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={disabled}
+                onChange={() => toggle(m.key)}
+                className="mt-0.5 w-4 h-4 accent-emerald-600"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-gray-900">{m.label}</span>
+                <span className="block text-xs text-gray-500">{m.description}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }

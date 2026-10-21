@@ -7,8 +7,9 @@ import QuickAccess from '../components/QuickAccess';
 import AvailableDoctors from '../components/AvailableDoctors';
 import BookingFlow from '../components/BookingFlow';
 
-// onNavigate = function we call with 'Appointments', 'Queue' or 'Records' to open that screen
-export default function HomeScreen({ userName = 'Tejas', onNavigate = () => {} }) {
+// onNavigate  = function we call with 'Appointments', 'Queue', 'Records' or 'Notifications'
+// unreadCount = unread notifications, shown on the bell in the header
+export default function HomeScreen({ userName = 'Tejas', onNavigate = () => {}, unreadCount = 0 }) {
   // booking = null (closed) or { doctor } (doctor = null means "pick a doctor first")
   const [booking, setBooking] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -20,7 +21,7 @@ export default function HomeScreen({ userName = 'Tejas', onNavigate = () => {} }
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Header />
+      <Header unreadCount={unreadCount} onBellPress={() => onNavigate('Notifications')} />
       <HeroBanner name={userName} onBookPress={() => openBooking()} />
       <QuickAccess
         onItemPress={(item) => {

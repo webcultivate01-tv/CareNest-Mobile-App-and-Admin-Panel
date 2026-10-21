@@ -22,12 +22,14 @@ import {
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
 import { setAdminListData } from "../redux/adminSlice";
+import { DEFAULT_MODULES } from "../modules";
 import {
   AdminActionDialog,
   Avatar,
   Dialog,
   Field,
   IconAction,
+  ModulePicker,
   ResetPasswordDialog,
   formatDate,
   generatePassword,
@@ -44,7 +46,7 @@ const ROLE_TABS = [
   { key: "subadmin", label: "Sub-admins" },
 ];
 
-const emptyCreateForm = { name: "", phone: "", email: "", password: "" };
+const emptyCreateForm = { name: "", phone: "", email: "", password: "", permissions: DEFAULT_MODULES };
 
 function Admins() {
   const dispatch = useDispatch();
@@ -372,6 +374,10 @@ function Admins() {
                 </button>
               </span>
             </Field>
+            <ModulePicker
+              value={createForm.permissions}
+              onChange={(permissions) => setCreateForm({ ...createForm, permissions })}
+            />
             <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs">
               <FiShield className="shrink-0" /> Role will be set to <b>Sub-admin</b>.
             </div>

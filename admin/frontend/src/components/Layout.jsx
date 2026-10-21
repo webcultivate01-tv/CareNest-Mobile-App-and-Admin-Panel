@@ -23,6 +23,7 @@ import { serverUrl } from "../App";
 import Avatar from "./Avatar";
 import { setAdminData } from "../redux/adminSlice";
 import Logo from "./Logo";
+import { hasModule } from "../modules";
 
 const formatNow = (date) =>
   `${date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${date.toLocaleTimeString(
@@ -34,10 +35,8 @@ function Layout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { adminData, adminListData } = useSelector((state) => state.admin);
+  const { adminData } = useSelector((state) => state.admin);
   const { statsData } = useSelector((state) => state.dashboard);
-  const { doctorData } = useSelector((state) => state.doctor);
-  const { patientData } = useSelector((state) => state.patient);
   const [now, setNow] = useState(new Date());
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -45,17 +44,18 @@ function Layout() {
 
   const pending = statsData?.pending || 0;
 
+  // `module` ties a link to the access the admin grants a sub-admin; Admin Management and Profile are always shown
   const links = [
-    { to: "/", label: "Dashboard", icon: <FiGrid />, end: true },
-    { to: "/doctors", label: "Doctor Management", icon: <FaUserMd />, count: doctorData.length },
-    { to: "/patients", label: "Patient Management", icon: <FiUsers />, count: patientData.length },
-    { to: "/appointments", label: "Appointment Management", icon: <FiCalendar />, count: pending },
-    { to: "/payments", label: "Payments Management", icon: <FiCreditCard /> },
-    { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw /> },
-    { to: "/admins", label: "Admin Management", icon: <FiShield />, count: adminListData.length },
-    { to: "/reports", label: "Reports", icon: <FiBarChart2 /> },
+    { to: "/", label: "Dashboard", icon: <FiGrid />, end: true, module: "dashboard" },
+    { to: "/doctors", label: "Doctor Management", icon: <FaUserMd />, module: "doctors" },
+    { to: "/patients", label: "Patient Management", icon: <FiUsers />, module: "patients" },
+    { to: "/appointments", label: "Appointments", icon: <FiCalendar />, module: "appointments" },
+    { to: "/payments", label: "Payments Management", icon: <FiCreditCard />, module: "payments" },
+    { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw />, module: "refunds" },
+    { to: "/admins", label: "Admin Management", icon: <FiShield /> },
+    { to: "/reports", label: "Reports", icon: <FiBarChart2 />, module: "reports" },
     { to: "/profile", label: "Profile Management", icon: <FiUser /> },
-  ];
+  ].filter((link) => !link.module || hasModule(adminData, link.module));
 
   const matches = search.trim()
     ? links.filter((link) => link.label.toLowerCase().includes(search.trim().toLowerCase()))
@@ -149,15 +149,6 @@ function Layout() {
                     {link.icon}
                   </span>
                   <span className="truncate">{link.label}</span>
-                  {link.count > 0 && (
-                    <span
-                      className={`ml-auto min-w-6 h-6 px-1.5 rounded-md text-xs font-semibold flex items-center justify-center ${
-                        isActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {link.count}
-                    </span>
-                  )}
                 </>
               )}
             </NavLink>
@@ -233,19 +224,23 @@ function Layout() {
           </div>
 
           <div className="flex items-center gap-4 shrink-0">
-            <button
-              onClick={() => navigate("/appointments")}
-              className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100"
-              aria-label="Pending appointments"
-            >
-              <FiBell className="text-xl" />
-              {pending > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center ring-2 ring-white">
-                  {pending}
-                </span>
-              )}
-            </button>
-            <span className="hidden sm:block w-px h-8 bg-gray-200" />
+            {hasModule(adminData, "appointments") && (
+              <>
+                <button
+                  onClick={() => navigate("/appointments")}
+                  className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                  aria-label="Pending appointments"
+                >
+                  <FiBell className="text-xl" />
+                  {pending > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center ring-2 ring-white">
+                      {pending}
+                    </span>
+                  )}
+                </button>
+                <span className="hidden sm:block w-px h-8 bg-gray-200" />
+              </>
+            )}
             <div className="hidden sm:block text-right leading-tight">
               <p className="text-[15px] font-semibold text-gray-900">{adminData?.name || "Admin"}</p>
               <p className="text-xs text-gray-500">{adminData?.email}</p>

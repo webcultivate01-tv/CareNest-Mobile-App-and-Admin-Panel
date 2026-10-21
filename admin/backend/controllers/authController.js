@@ -34,7 +34,10 @@ export const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({ id: admin.id, name: admin.name, email: admin.email, role: admin.role, photo: admin.photo });
+    return res.status(200).json({ id: admin.id, name: admin.name, email: admin.email, role: admin.role,
+      photo: admin.photo,
+      permissions: admin.permissions,
+    });
   } catch (error) {
     return res.status(500).json({ message: `Login error ${error.message}` });
   }

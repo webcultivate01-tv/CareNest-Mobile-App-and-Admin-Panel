@@ -74,7 +74,8 @@ function InfoRow({ icon, label, value, onPress, last }) {
 // user         = details saved when the user signed up / logged in
 // onUserChange = called with the new details after a successful edit / photo change
 // onLogout     = function we call when "Log out" is tapped
-export default function ProfileScreen({ user, onUserChange, onLogout }) {
+// onOpenNotifications = opens the notification inbox from the side menu
+export default function ProfileScreen({ user, onUserChange, onLogout, onOpenNotifications }) {
   const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const name = user.name || 'CareNest User';
@@ -273,7 +274,12 @@ export default function ProfileScreen({ user, onUserChange, onLogout }) {
           </>
         )}
       </View>
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} onLogout={onLogout} />
+      <SideMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onLogout={onLogout}
+        onOpenNotifications={onOpenNotifications}
+      />
     </ScrollView>
   );
 }

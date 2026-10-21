@@ -126,3 +126,38 @@ export const createPaymentOrder = (token, appointmentId) =>
 // { orderId, paymentId, signature } from the checkout success handler
 export const verifyPayment = (token, { orderId, paymentId, signature }) =>
   request('/api/user/payment/verify', { method: 'POST', token, body: { orderId, paymentId, signature } });
+
+// ---- notifications (the bell) ----
+
+// { notifications: [{ id, type, title, body, data, readAt, createdAt }], unread }
+export const getNotifications = (token) => request('/api/user/notifications', { token });
+
+// { unread } - small enough to call whenever the app comes back to the foreground
+export const getUnreadCount = (token) => request('/api/user/notifications/unread', { token });
+
+export const markNotificationRead = (token, id) =>
+  request(`/api/user/notifications/${id}/read`, { method: 'POST', token });
+
+export const markAllNotificationsRead = (token) =>
+  request('/api/user/notifications/readall', { method: 'POST', token });
+
+export const deleteNotification = (token, id) =>
+  request(`/api/user/notifications/${id}`, { method: 'DELETE', token });
+
+// ---- forgot password (email OTP) ----
+// Three steps: ask for a code, check the code, then set the new password.
+
+// Always succeeds with the same message, whether or not that email has an account.
+export const requestPasswordOtp = (email) =>
+  request('/api/user/password/forgot', { method: 'POST', body: { email: email.trim() } });
+
+// { resetToken } - needed by resetPassword below
+export const verifyPasswordOtp = (email, otp) =>
+  request('/api/user/password/verify-otp', { method: 'POST', body: { email: email.trim(), otp } });
+
+export const resetPassword = (resetToken, password) =>
+  request('/api/user/password/reset', { method: 'POST', body: { resetToken, password } });
+
+// for a patient who is already signed in
+export const changePassword = (token, currentPassword, newPassword) =>
+  request('/api/user/password/change', { method: 'POST', token, body: { currentPassword, newPassword } });

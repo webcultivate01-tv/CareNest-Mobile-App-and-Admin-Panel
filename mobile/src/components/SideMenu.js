@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ChangePasswordModal from './ChangePasswordModal';
 import { colors } from '../theme/colors';
 import { LANGUAGES, useLanguage } from '../i18n';
 
@@ -31,10 +32,12 @@ function Item({ icon, title, onPress, danger, right }) {
   );
 }
 
-export default function SideMenu({ visible, onClose, onLogout }) {
+// onOpenNotifications = opens the notification inbox (optional)
+export default function SideMenu({ visible, onClose, onLogout, onOpenNotifications }) {
   const { t, lang, setLang } = useLanguage();
   const [mounted, setMounted] = useState(visible);
   const [showLanguages, setShowLanguages] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [slide] = useState(() => new Animated.Value(WIDTH));
 
   if (visible && !mounted) setMounted(true);
@@ -72,12 +75,15 @@ export default function SideMenu({ visible, onClose, onLogout }) {
               <Item
                 icon="notifications-outline"
                 title={t('notifications')}
-                onPress={soon(t('notifications'))}
+                onPress={() => {
+                  onClose();
+                  onOpenNotifications?.();
+                }}
               />
               <Item
                 icon="lock-closed-outline"
                 title={t('security')}
-                onPress={soon(t('security'))}
+                onPress={() => setShowPassword(true)}
               />
               <Item
                 icon="language-outline"
@@ -150,6 +156,7 @@ export default function SideMenu({ visible, onClose, onLogout }) {
               </TouchableOpacity>
             </ScrollView>
 
+            <ChangePasswordModal visible={showPassword} onClose={() => setShowPassword(false)} />
           </SafeAreaView>
         </Animated.View>
       </View>

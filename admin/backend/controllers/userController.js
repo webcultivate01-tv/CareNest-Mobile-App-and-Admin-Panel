@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import validator from "validator";
 import { genUserToken } from "../config/token.js";
+import { notifyInBackground, notifyWelcome } from "../config/notifications.js";
 import { movePhoto, photoUrl, removePhotoFile, savePhoto } from "../config/photos.js";
 import {
   findPatientByPhoneExcept,
@@ -78,6 +79,9 @@ export const signUp = async (req, res) => {
       dob,
       password: hashPassword,
     });
+
+    // welcome message in the inbox + by email; backgrounded so signup is not slowed by the mail server
+    notifyInBackground(() => notifyWelcome(patient));
 
     const token = genUserToken(patient.id);
     return res.status(201).json({ message: "Account created successfully", token, user: toUser(patient, req) });

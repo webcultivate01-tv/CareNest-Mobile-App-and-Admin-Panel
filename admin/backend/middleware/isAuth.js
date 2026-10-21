@@ -24,6 +24,7 @@ const isAuth = async (req, res, next) => {
 
     req.adminId = admin.id;
     req.adminRole = admin.role;
+    req.adminPermissions = admin.permissions || [];
     next();
   } catch (error) {
     return res.status(401).json({ message: `isAuth error ${error.message}` });
@@ -36,5 +37,15 @@ export const isPrimaryAdmin = (req, res, next) => {
   }
   next();
 };
+
+// the admin passes everywhere; a sub-admin needs at least one of the listed modules
+export const requireModule =
+  (...modules) =>
+  (req, res, next) => {
+    if (req.adminRole === "admin" || modules.some((key) => req.adminPermissions.includes(key))) {
+      return next();
+    }
+    return res.status(403).json({ message: "You do not have access to this section" });
+  };
 
 export default isAuth;

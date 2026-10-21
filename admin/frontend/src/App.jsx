@@ -26,8 +26,15 @@ import useGetPatients from "./CustomHooks/getPatients";
 import useGetAppointments from "./CustomHooks/getAppointments";
 import useGetStats from "./CustomHooks/getStats";
 import useGetAdmins from "./CustomHooks/getAdmins";
+import { firstAllowedPath, hasModule } from "./modules";
 
 export const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:5000";
+
+// sends a sub-admin home when the admin has not given them this module (the API refuses it too)
+function Guard({ module, children }) {
+  const { adminData } = useSelector((state) => state.admin);
+  return hasModule(adminData, module) ? children : <Navigate to={firstAllowedPath(adminData)} replace />;
+}
 
 function App() {
   useGetCurrentAdmin();
@@ -53,22 +60,22 @@ function App() {
       <Routes>
         <Route path="/login" element={!adminData ? <Login /> : <Navigate to={"/"} />} />
         <Route element={adminData ? <Layout /> : <Navigate to={"/login"} />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/doctors" element={<Doctors />} />
-          <Route path="/doctors/new" element={<DoctorForm />} />
-          <Route path="/doctors/:doctorId" element={<DoctorDetail />} />
-          <Route path="/doctors/:doctorId/edit" element={<DoctorForm />} />
-          <Route path="/doctors/:doctorId/availability" element={<DoctorAvailability />} />
-          <Route path="/patients" element={<Patients />} />
-          <Route path="/appointments" element={<Appointments />} />
-          <Route path="/appointments/:appointmentId" element={<AppointmentDetail />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/payments/:paymentId" element={<PaymentDetail />} />
-          <Route path="/refunds" element={<Refunds />} />
-          <Route path="/refunds/new" element={<IssueRefund />} />
+          <Route path="/" element={<Guard module="dashboard"><Dashboard /></Guard>} />
+          <Route path="/doctors" element={<Guard module="doctors"><Doctors /></Guard>} />
+          <Route path="/doctors/new" element={<Guard module="doctors"><DoctorForm /></Guard>} />
+          <Route path="/doctors/:doctorId" element={<Guard module="doctors"><DoctorDetail /></Guard>} />
+          <Route path="/doctors/:doctorId/edit" element={<Guard module="doctors"><DoctorForm /></Guard>} />
+          <Route path="/doctors/:doctorId/availability" element={<Guard module="doctors"><DoctorAvailability /></Guard>} />
+          <Route path="/patients" element={<Guard module="patients"><Patients /></Guard>} />
+          <Route path="/appointments" element={<Guard module="appointments"><Appointments /></Guard>} />
+          <Route path="/appointments/:appointmentId" element={<Guard module="appointments"><AppointmentDetail /></Guard>} />
+          <Route path="/payments" element={<Guard module="payments"><Payments /></Guard>} />
+          <Route path="/payments/:paymentId" element={<Guard module="payments"><PaymentDetail /></Guard>} />
+          <Route path="/refunds" element={<Guard module="refunds"><Refunds /></Guard>} />
+          <Route path="/refunds/new" element={<Guard module="refunds"><IssueRefund /></Guard>} />
           <Route path="/admins" element={<Admins />} />
           <Route path="/admins/:adminId" element={<AdminDetail />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports" element={<Guard module="reports"><Reports /></Guard>} />
           <Route path="/profile" element={<Profile />} />
         </Route>
         <Route path="*" element={<Navigate to={"/"} />} />

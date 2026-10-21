@@ -1,4 +1,11 @@
 import { pool, query } from "../config/database.js";
+import {
+  notifyBookingConfirmed,
+  notifyInBackground,
+  notifyPaymentFailed,
+  notifyRefundProcessed,
+} from "../config/notifications.js";
+import { findAppointmentById } from "./appointmentModel.js";
 
 // One row per Razorpay order (= one checkout attempt for one appointment). A single order can
 // receive several payment attempts (retries) before one succeeds, which is why status transitions
@@ -270,7 +277,8 @@ export const applyPaymentCaptured = async (entity) => {
       return null; // order we don't know about (shouldn't happen for our own orders)
     }
     const isNew = await recordEventOrSkip(client, payment.id, "payment.captured", `captured:${entity.id}`, entity);
-    if (isNew && !terminalSuccessStatuses.includes(payment.status)) {
+    const applied = isNew && !terminalSuccessStatuses.includes(payment.status);
+    if (applied) {
       await client.query(
         `UPDATE payments SET status = 'captured', "providerPaymentId" = $1, method = $2, "capturedAt" = now(), "updatedAt" = now()
          WHERE id = $3`,
@@ -286,7 +294,16 @@ export const applyPaymentCaptured = async (entity) => {
       );
     }
     await client.query("COMMIT");
-    return findPaymentById(payment.id);
+    const updated = await findPaymentById(payment.id);
+    // the booking confirmation + payment receipt the patient gets, sent in the background so the
+    // checkout response is never held up by the mail server
+    if (applied) {
+      notifyInBackground(async () => {
+        const appointment = await findAppointmentById(payment.appointmentId);
+        if (appointment) await notifyBookingConfirmed({ appointment, payment: updated });
+      });
+    }
+    return updated;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -307,7 +324,8 @@ export const applyPaymentFailed = async (entity) => {
     }
     const isNew = await recordEventOrSkip(client, payment.id, "payment.failed", `failed:${entity.id}`, entity);
     // a failed retry must never erase an already-successful payment on the same order
-    if (isNew && !terminalSuccessStatuses.includes(payment.status)) {
+    const applied = isNew && !terminalSuccessStatuses.includes(payment.status);
+    if (applied) {
       await client.query(
         `UPDATE payments SET status = 'failed', "providerPaymentId" = $1, "failureReason" = $2, "updatedAt" = now() WHERE id = $3`,
         [entity.id, entity.error_description || entity.failureReason || "Payment failed", payment.id]
@@ -318,7 +336,16 @@ export const applyPaymentFailed = async (entity) => {
       );
     }
     await client.query("COMMIT");
-    return findPaymentById(payment.id);
+    const updated = await findPaymentById(payment.id);
+    // time-critical: an unpaid booking only holds its slot for a short while, so tell the patient
+    // their payment failed and the appointment is not confirmed
+    if (applied) {
+      notifyInBackground(async () => {
+        const appointment = await findAppointmentById(payment.appointmentId);
+        if (appointment) await notifyPaymentFailed({ appointment, payment: updated });
+      });
+    }
+    return updated;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -354,7 +381,8 @@ export const applyRefund = async (refundEntity) => {
       `refund:${refundEntity.id}:${status}`,
       refundEntity
     );
-    if (isNew && status === "processed" && ["captured", "partially_refunded"].includes(payment.status)) {
+    const applied = isNew && status === "processed" && ["captured", "partially_refunded"].includes(payment.status);
+    if (applied) {
       const refundRupees = Number(refundEntity.amount) / 100;
       const newRefunded = Number(payment.refundedAmount) + refundRupees;
       const newStatus = newRefunded >= Number(payment.amount) ? "refunded" : "partially_refunded";
@@ -368,7 +396,12 @@ export const applyRefund = async (refundEntity) => {
       ]);
     }
     await client.query("COMMIT");
-    return findPaymentById(payment.id);
+    const updated = await findPaymentById(payment.id);
+    // only a refund that actually moved money is worth telling the patient about
+    if (applied && updated) {
+      notifyInBackground(() => notifyRefundProcessed({ payment: updated, refund: refundEntity }));
+    }
+    return updated;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

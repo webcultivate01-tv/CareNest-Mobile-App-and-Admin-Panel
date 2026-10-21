@@ -3,8 +3,9 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-// onBellPress = function we call when the bell is tapped (optional)
-export default function Header({ onBellPress }) {
+// onBellPress  = function we call when the bell is tapped (optional)
+// unreadCount  = how many unread notifications there are; 0 hides the badge
+export default function Header({ onBellPress, unreadCount = 0 }) {
   return (
     <View style={styles.row}>
       {/* Left side: logo and app name */}
@@ -20,14 +21,20 @@ export default function Header({ onBellPress }) {
         </View>
       </View>
 
-      {/* Right side: bell with a small red dot (new notification) */}
+      {/* Right side: bell with the number of unread notifications on it */}
       <TouchableOpacity
         onPress={onBellPress}
         style={styles.bell}
-        accessibilityLabel="Notifications"
+        accessibilityLabel={
+          unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'
+        }
       >
         <Ionicons name="notifications-outline" size={28} color={colors.text} />
-        <View style={styles.dot} />
+        {unreadCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -70,14 +77,24 @@ const styles = StyleSheet.create({
   bell: {
     padding: 6,
   },
-  // The red dot sits on top of the bell (position: 'absolute')
-  dot: {
+  // The unread count sits on top of the bell (position: 'absolute')
+  badge: {
     position: 'absolute',
-    top: 6,
-    right: 7,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
     backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
   },
 });

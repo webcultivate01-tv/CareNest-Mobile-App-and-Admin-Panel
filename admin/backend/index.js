@@ -16,6 +16,7 @@ import refundRouter from "./routes/refundRoute.js";
 import webhookRouter from "./routes/webhookRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
 import { deleteUnpaidAppointments, renumberAppointmentCodes } from "./model/appointmentModel.js";
+import { startReminderScheduler } from "./config/reminders.js";
 
 dotenv.config();
 fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // profile photos: admin/uploads/<patients|admins|subadmins>/<name>/
@@ -57,5 +58,7 @@ app.listen(process.env.PORT, () => {
     renumberAppointmentCodes().catch((error) => console.log(`Appointment renumber error ${error.message}`));
     sweep();
     setInterval(sweep, 5 * 60 * 1000);
+    // appointment reminders 1 day / 1 hour / 30 min / 10 min before the slot (config/reminders.js)
+    startReminderScheduler(1);
   });
 });

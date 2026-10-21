@@ -81,6 +81,30 @@ export const findAppointmentById = async (id, db = { query }) => {
   return rows[0];
 };
 
+// Appointments whose "`minutesBefore` minutes before the slot" reminder is due now (see
+// config/reminders.js). Only paid, still-upcoming, not cancelled/completed appointments qualify.
+//
+// Two guards keep the wording honest:
+//   * windowMinutes bounds how LATE the reminder may still go out, so a sweep catching up after
+//     downtime can not send "your appointment is tomorrow" when it is an hour away. A reminder
+//     older than its window is simply dropped - the next, shorter one still arrives.
+//   * the createdAt / rescheduledAt conditions drop a reminder that never made sense: an
+//     appointment booked (or moved) 2 hours before its slot was never 1 day away.
+export const findAppointmentsDueForReminder = async (minutesBefore, windowMinutes) => {
+  const { rows } = await query(
+    `${selectAppointment}
+     WHERE a.status IN ('pending','confirmed')
+       AND a."paymentStatus" = 'paid'
+       AND a."scheduledAt" <= now() + ($1 * interval '1 minute')
+       AND a."scheduledAt" > now() + (($1 - $2) * interval '1 minute')
+       AND a."createdAt" <= a."scheduledAt" - ($1 * interval '1 minute')
+       AND (a."rescheduledAt" IS NULL OR a."rescheduledAt" <= a."scheduledAt" - ($1 * interval '1 minute'))
+     ORDER BY a."scheduledAt"`,
+    [minutesBefore, windowMinutes]
+  );
+  return rows;
+};
+
 // plain edit (status / notes / patient): fee and duration are never touched
 export const updateAppointmentById = async (id, a) => {
   const { rows } = await query(

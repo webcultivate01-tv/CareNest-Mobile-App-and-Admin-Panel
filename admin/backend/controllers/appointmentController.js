@@ -1,4 +1,5 @@
 import { saveAppointment } from "../config/booking.js";
+import { notifyInBackground, notifyRescheduled, notifyStatusChange } from "../config/notifications.js";
 import {
   appointmentStatuses,
   deleteAppointmentById,
@@ -106,6 +107,18 @@ export const editAppointment = async (req, res) => {
       }
       appointment = await updateAppointmentById(appointmentId, next);
     }
+
+    // tell the patient what the admin just changed. A move and a status change can both happen in
+    // one edit, so both are reported; each carries its own dedupeKey (see config/notifications.js).
+    if (appointment) {
+      const statusChanged = next.status !== oldAppointment.status;
+      notifyInBackground(async () => {
+        if (movedSlot && next.status !== "cancelled") {
+          await notifyRescheduled({ appointment, previousScheduledAt: oldAppointment.scheduledAt });
+        }
+        if (statusChanged) await notifyStatusChange({ appointment, status: next.status });
+      });
+    }
     return res.status(200).json({ message: "Appointment updated successfully", appointment });
   } catch (error) {
     return sendError(res, "EditAppointment", error);
@@ -162,6 +175,11 @@ export const rescheduleAppointment = async (req, res) => {
       notes: old.notes,
     });
     const appointment = await recordReschedule(old.id, { reason: reason.trim(), previousScheduledAt: old.scheduledAt });
+    // the patient is told the new time and why it moved; reminders re-arm for the new slot because
+    // the reminder dedupeKey includes the scheduled time
+    notifyInBackground(() =>
+      notifyRescheduled({ appointment, previousScheduledAt: old.scheduledAt, reason: reason.trim() })
+    );
     return res.status(200).json({ message: "Appointment rescheduled successfully", appointment });
   } catch (error) {
     return sendError(res, "RescheduleAppointment", error);

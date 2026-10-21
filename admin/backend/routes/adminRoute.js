@@ -8,6 +8,7 @@ import {
   removeAdmin,
   resetAdminPassword,
   setAdminBlocked,
+  setAdminPermissions,
   updateProfile,
   uploadPhoto,
 } from "../controllers/adminController.js";
@@ -27,6 +28,7 @@ adminRouter.delete("/photo", isAuth, deletePhoto);
 adminRouter.post("/create", isAuth, isPrimaryAdmin, createAdmin);
 adminRouter.post("/edit/:adminId", isAuth, isPrimaryAdmin, editAdmin);
 adminRouter.post("/block/:adminId", isAuth, isPrimaryAdmin, setAdminBlocked);
+adminRouter.post("/permissions/:adminId", isAuth, isPrimaryAdmin, setAdminPermissions);
 adminRouter.post("/resetpassword/:adminId", isAuth, isPrimaryAdmin, resetAdminPassword);
 adminRouter.delete("/remove/:adminId", isAuth, isPrimaryAdmin, removeAdmin);
 

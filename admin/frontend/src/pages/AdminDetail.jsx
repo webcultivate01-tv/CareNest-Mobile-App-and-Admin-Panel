@@ -22,13 +22,16 @@ import {
   FiUnlock,
   FiUser,
   FiX,
+  FiXCircle,
 } from "react-icons/fi";
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
+import { MODULES } from "../modules";
 import {
   AdminActionDialog,
   Avatar,
   Field,
+  ModulePicker,
   ResetPasswordDialog,
   RoleBadge,
   StatusBadge,
@@ -42,7 +45,6 @@ import {
   useReplaceAdmin,
 } from "../components/AdminUI";
 
-const SUB_ADMIN_ACCESS = ["Dashboard", "Doctors", "Patients", "Appointments", "Reports"];
 
 function InfoRow({ icon, label, children }) {
   return (
@@ -71,11 +73,15 @@ function AdminDetail() {
   const [loading, setLoading] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [action, setAction] = useState(null); // "block" | "unblock" | "remove"
+  const [editingAccess, setEditingAccess] = useState(false);
+  const [accessDraft, setAccessDraft] = useState([]);
 
   const resetForm = () => admin && setForm({ name: admin.name, phone: admin.phone || "", email: admin.email });
 
   useEffect(() => {
     setEditing(false);
+    setEditingAccess(false);
+    setAccessDraft(admin?.permissions || []);
     resetForm();
   }, [admin?.id]);
 
@@ -115,6 +121,24 @@ function AdminDetail() {
       replaceAdmin(result.data.admin);
       setEditing(false);
       showSuccess("Details Updated Successfully");
+    } catch (error) {
+      showError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAccess = async () => {
+    setLoading(true);
+    try {
+      const result = await axios.post(
+        serverUrl + `/api/admin/permissions/${admin.id}`,
+        { permissions: accessDraft },
+        { withCredentials: true }
+      );
+      replaceAdmin(result.data.admin);
+      setEditingAccess(false);
+      showSuccess("Module access updated");
     } catch (error) {
       showError(error);
     } finally {
@@ -296,25 +320,61 @@ function AdminDetail() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-1">Access</h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-base font-bold text-gray-900 mb-1">Module access</h2>
+              {canManage && !editingAccess && (
+                <button onClick={() => setEditingAccess(true)} className="text-xs font-semibold text-emerald-700 hover:underline">
+                  Edit
+                </button>
+              )}
+            </div>
             {isSub ? (
-              <>
-                <p className="text-xs text-gray-500 mb-4">
-                  {admin.isBlocked ? "No access while blocked." : "Sections this sub-admin can manage."}
-                </p>
-                <ul className="space-y-2.5">
-                  {SUB_ADMIN_ACCESS.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm text-gray-700">
-                      <FiCheckCircle className={admin.isBlocked ? "text-gray-300" : "text-emerald-600"} />
-                      <span className={admin.isBlocked ? "text-gray-400 line-through" : ""}>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              editingAccess ? (
+                <div className="mt-3 space-y-4">
+                  <ModulePicker value={accessDraft} onChange={setAccessDraft} />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setEditingAccess(false);
+                        setAccessDraft(admin.permissions || []);
+                      }}
+                      className={`${secondaryButton} flex-1 h-10`}
+                    >
+                      Cancel
+                    </button>
+                    <button onClick={handleSaveAccess} disabled={loading} className={`${primaryButton} flex-1 h-10`}>
+                      {loading ? <ClipLoader size={16} color="white" /> : "Save"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 mb-4">
+                    {admin.isBlocked ? "No access while blocked." : "Sections this sub-admin can open."}
+                  </p>
+                  <ul className="space-y-2.5">
+                    {MODULES.map((m) => {
+                      const has = (admin.permissions || []).includes(m.key);
+                      return (
+                        <li key={m.key} className="flex items-center gap-2.5 text-sm">
+                          {has ? (
+                            <FiCheckCircle className={admin.isBlocked ? "text-gray-300" : "text-emerald-600"} />
+                          ) : (
+                            <FiXCircle className="text-gray-300" />
+                          )}
+                          <span className={has && !admin.isBlocked ? "text-gray-700" : "text-gray-400 line-through"}>
+                            {m.label}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )
             ) : (
               <p className="text-sm text-gray-600 flex items-start gap-2.5 mt-3">
                 <FaCrown className="text-emerald-600 mt-0.5 shrink-0" />
-                Full access, including managing sub-admins. This account cannot be blocked or removed.
+                Full access to every module, including managing sub-admins. This account cannot be blocked or removed.
               </p>
             )}
           </div>

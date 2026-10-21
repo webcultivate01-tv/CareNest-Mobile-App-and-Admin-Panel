@@ -1,8 +1,10 @@
 import { query } from "../config/database.js";
+import { DEFAULT_MODULES } from "../config/modules.js";
 
 // role: "admin" (exactly one, the owner of the panel) or "subadmin"
 // photo: path like "uploads/subadmins/Subadmin 1/profile-4-1792510081361.jpg" (see config/photos.js)
-const PUBLIC_FIELDS = `id, name, email, phone, role, code, "isBlocked", photo, "createdAt", "updatedAt"`;
+// permissions: module keys a sub-admin may open (config/modules.js); ignored for the admin
+const PUBLIC_FIELDS = `id, name, email, phone, role, code, "isBlocked", photo, permissions, "createdAt", "updatedAt"`;
 
 export const createAdminTable = async () => {
   await query(`
@@ -26,6 +28,10 @@ export const createAdminTable = async () => {
   // display ID: owner is CNA-001, sub-admins are CNSA-001, CNSA-002... (from a sequence, so a
   // deleted sub-admin's number is never handed to someone else)
   await query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS code TEXT`);
+  // existing sub-admins keep the sections they already had
+  await query(
+    `ALTER TABLE admins ADD COLUMN IF NOT EXISTS permissions TEXT[] NOT NULL DEFAULT '{${DEFAULT_MODULES.join(",")}}'`
+  );
   await query(`CREATE SEQUENCE IF NOT EXISTS admin_subadmin_no_seq`);
   await ensurePrimaryAdmin();
   await backfillAdminCodes();
@@ -73,12 +79,21 @@ export const findAdmins = async () => {
   return rows;
 };
 
-export const insertAdmin = async (name, email, password, phone) => {
+export const insertAdmin = async (name, email, password, phone, permissions) => {
   const { rows } = await query(
-    `INSERT INTO admins (name, email, password, phone, role, code)
-     VALUES ($1, $2, $3, $4, 'subadmin', 'CNSA-' || lpad(nextval('admin_subadmin_no_seq')::text, 3, '0'))
+    `INSERT INTO admins (name, email, password, phone, role, code, permissions)
+     VALUES ($1, $2, $3, $4, 'subadmin', 'CNSA-' || lpad(nextval('admin_subadmin_no_seq')::text, 3, '0'), $5)
      RETURNING ${PUBLIC_FIELDS}`,
-    [name, email, password, phone || null]
+    [name, email, password, phone || null, permissions]
+  );
+  return rows[0];
+};
+
+export const updateAdminPermissions = async (id, permissions) => {
+  const { rows } = await query(
+    `UPDATE admins SET permissions = $1, "updatedAt" = now()
+     WHERE id = $2 AND role = 'subadmin' RETURNING ${PUBLIC_FIELDS}`,
+    [permissions, id]
   );
   return rows[0];
 };
