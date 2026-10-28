@@ -1,7 +1,10 @@
 import { query } from "../config/database.js";
 
 // never send the password hash to the admin panel / app (phone = mobile number)
-const publicColumns = `id, name, email, phone, code, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "createdAt", "updatedAt"`;
+const publicColumns = `id, name, email, phone, code, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "marketingConsent", "createdAt", "updatedAt"`;
+
+// where a marketing consent change came from (shown in the admin panel)
+export const consentSources = ["app", "staff", "unsubscribe_link", "whatsapp_stop"];
 
 export const createPatientTable = async () => {
   await query(`
@@ -34,6 +37,11 @@ export const createPatientTable = async () => {
   }
   await query(`ALTER TABLE patients ALTER COLUMN code SET DEFAULT 'CNP-' || lpad(nextval('patient_no_seq')::text, 3, '0')`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS patients_code_key ON patients (code)`);
+  // marketing consent (Marketing module): WhatsApp / SMS / email campaigns only go to patients who
+  // agreed. Everyone starts as NOT agreed - consent is given in the app or recorded by staff.
+  await query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS "marketingConsent" BOOLEAN NOT NULL DEFAULT false`);
+  await query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS "marketingConsentAt" TIMESTAMPTZ`);
+  await query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS "marketingConsentSource" TEXT`);
 };
 
 export const findPatients = async () => {
@@ -141,4 +149,104 @@ export const setPatientPhoto = async (id, photo) => {
     [photo, id]
   );
   return rows[0];
+};
+
+// ---- marketing (see controllers/marketingController.js) ----
+
+const clinicZone = () => process.env.CLINIC_TIMEZONE || "Asia/Kolkata";
+
+// the most patients one audience search returns; the panel says so when a filter matches more
+export const AUDIENCE_LIMIT = 5000;
+
+// f = filters already checked by the controller (numbers are numbers, dates are YYYY-MM-DD,
+// enums are from the allowed list). A "visit" is a confirmed or completed appointment whose time
+// has come - future bookings and cancellations do not count.
+export const findAudience = async (f) => {
+  const where = [];
+  const params = [];
+  const add = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+  const visitedBy = (doctorSql) =>
+    `EXISTS (SELECT 1 FROM appointments a ${doctorSql.join} WHERE a."patientId" = p.id AND a.status <> 'cancelled' AND ${doctorSql.where})`;
+
+  if (f.search) {
+    const like = add(`%${f.search.replace(/[\%_]/g, (c) => `\${c}`)}%`);
+    where.push(`(p.name ILIKE ${like} OR p.code ILIKE ${like} OR p.phone ILIKE ${like} OR p.email ILIKE ${like})`);
+  }
+  if (f.ageMin !== null) where.push(`date_part('year', age(p.dob)) >= ${add(f.ageMin)}`);
+  if (f.ageMax !== null) where.push(`date_part('year', age(p.dob)) <= ${add(f.ageMax)}`);
+  if (f.joinedFrom) where.push(`(p."createdAt" AT TIME ZONE ${add(clinicZone())})::date >= ${add(f.joinedFrom)}::date`);
+  if (f.joinedTo) where.push(`(p."createdAt" AT TIME ZONE ${add(clinicZone())})::date <= ${add(f.joinedTo)}::date`);
+  if (f.visit) {
+    if (f.visit.type === "never") where.push(`v."lastVisit" IS NULL`);
+    if (f.visit.type === "within") where.push(`v."lastVisit" >= now() - make_interval(days => ${add(f.visit.days)}::int)`);
+    if (f.visit.type === "over") where.push(`v."lastVisit" < now() - make_interval(days => ${add(f.visit.days)}::int)`);
+  }
+  if (f.doctorId) where.push(visitedBy({ join: "", where: `a."doctorId" = ${add(f.doctorId)}` }));
+  if (f.specialty) {
+    where.push(visitedBy({ join: `JOIN doctors d ON d.id = a."doctorId"`, where: `d.specialty = ${add(f.specialty)}` }));
+  }
+  if (f.appointmentStatus) {
+    where.push(`EXISTS (SELECT 1 FROM appointments a WHERE a."patientId" = p.id AND a.status = ${add(f.appointmentStatus)})`);
+  }
+  if (f.reach === "phone") where.push(`NULLIF(trim(p.phone), '') IS NOT NULL`);
+  if (f.reach === "email") where.push(`NULLIF(trim(p.email), '') IS NOT NULL`);
+  if (f.reach === "app") where.push(`p.password IS NOT NULL`);
+  if (f.consent === "yes") where.push(`p."marketingConsent"`);
+  if (f.consent === "no") where.push(`NOT p."marketingConsent"`);
+
+  const { rows } = await query(
+    `WITH visits AS (
+       SELECT a."patientId",
+              max(a."scheduledAt") AS "lastVisit",
+              count(*)::int AS visits
+       FROM appointments a
+       WHERE a.status IN ('confirmed', 'completed') AND a."scheduledAt" <= now()
+       GROUP BY a."patientId"
+     )
+     SELECT p.id, p.code, p.name, p.phone, p.email, date_part('year', age(p.dob))::int AS age, p."createdAt",
+            v."lastVisit", COALESCE(v.visits, 0) AS visits, (p.password IS NOT NULL) AS "hasApp",
+            p."marketingConsent", p."marketingConsentAt", p."marketingConsentSource"
+     FROM patients p
+     LEFT JOIN visits v ON v."patientId" = p.id
+     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY p."createdAt" DESC, p.id DESC
+     LIMIT ${AUDIENCE_LIMIT + 1}`,
+    params
+  );
+  return { patients: rows.slice(0, AUDIENCE_LIMIT), truncated: rows.length > AUDIENCE_LIMIT };
+};
+
+// what a campaign needs to know about each selected patient
+export const findPatientsForCampaign = async (ids) => {
+  const { rows } = await query(
+    `SELECT id, name, code, phone, email, "marketingConsent", (password IS NOT NULL) AS "hasApp"
+     FROM patients WHERE id = ANY($1::int[])`,
+    [ids]
+  );
+  return rows;
+};
+
+// returns the ids that actually changed
+export const setMarketingConsent = async (ids, consent, source) => {
+  const { rows } = await query(
+    `UPDATE patients SET "marketingConsent" = $2, "marketingConsentAt" = now(), "marketingConsentSource" = $3
+     WHERE id = ANY($1::int[]) AND "marketingConsent" <> $2 RETURNING id`,
+    [ids, consent, source]
+  );
+  return rows.map((r) => r.id);
+};
+
+// a "STOP" reply on WhatsApp: numbers are stored as typed, so match on the last 10 digits
+export const revokeConsentByPhone = async (digits, source) => {
+  const { rows } = await query(
+    `UPDATE patients SET "marketingConsent" = false, "marketingConsentAt" = now(), "marketingConsentSource" = $2
+     WHERE "marketingConsent" AND length(regexp_replace(phone, '\D', '', 'g')) >= 10
+       AND right(regexp_replace(phone, '\D', '', 'g'), 10) = right($1, 10)
+     RETURNING id`,
+    [String(digits).replace(/\D/g, ""), source]
+  );
+  return rows.map((r) => r.id);
 };

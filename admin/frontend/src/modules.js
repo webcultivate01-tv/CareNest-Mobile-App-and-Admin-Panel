@@ -8,6 +8,7 @@ export const MODULES = [
   { key: "payments", label: "Payments", path: "/payments", description: "Payment history and receipts" },
   { key: "refunds", label: "Refunds", path: "/refunds", description: "Refund status and history" },
   { key: "reports", label: "Reports", path: "/reports", description: "Analytics and reports" },
+  { key: "marketing", label: "Marketing", path: "/marketing", description: "Send WhatsApp, SMS, email and app messages to patients" },
 ];
 
 export const DEFAULT_MODULES = ["dashboard", "doctors", "patients", "appointments", "reports"];

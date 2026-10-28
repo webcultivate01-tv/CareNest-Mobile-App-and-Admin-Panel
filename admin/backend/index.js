@@ -13,10 +13,13 @@ import userRouter from "./routes/userRoute.js";
 import adminRouter from "./routes/adminRoute.js";
 import paymentRouter from "./routes/paymentRoute.js";
 import refundRouter from "./routes/refundRoute.js";
+import reportRouter from "./routes/reportRoute.js";
 import webhookRouter from "./routes/webhookRoute.js";
+import marketingRouter from "./routes/marketingRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
 import { deleteUnpaidAppointments, renumberAppointmentCodes } from "./model/appointmentModel.js";
 import { startReminderScheduler } from "./config/reminders.js";
+import { startCampaignSender } from "./config/campaignSender.js";
 
 dotenv.config();
 fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // profile photos: admin/uploads/<patients|admins|subadmins>/<name>/
@@ -27,6 +30,9 @@ const app = express();
 // global express.json() below. (express's body parsers skip re-parsing once req._body is set,
 // which express.raw() already does, so the global json() below safely leaves this path alone.)
 app.use("/api/webhook/razorpay", express.raw({ type: "application/json" }));
+// same for WhatsApp (Meta signs the raw bytes); Twilio's SMS receipts are form-encoded
+app.use("/api/webhook/whatsapp", express.raw({ type: "application/json", limit: "1mb" }));
+app.use("/api/webhook/sms", express.urlencoded({ extended: false }));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -42,7 +48,9 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/refund", refundRouter);
+app.use("/api/report", reportRouter);
 app.use("/api/webhook", webhookRouter);
+app.use("/api/marketing", marketingRouter);
 app.use("/api/user", userRouter); // mobile app: signup / login
 
 app.get("/", (req, res) => res.send("CareNest Admin API"));
@@ -60,5 +68,7 @@ app.listen(process.env.PORT, () => {
     setInterval(sweep, 5 * 60 * 1000);
     // appointment reminders 1 day / 1 hour / 30 min / 10 min before the slot (config/reminders.js)
     startReminderScheduler(1);
+    // marketing campaigns: the send queue + scheduled campaigns (config/campaignSender.js)
+    startCampaignSender(5);
   });
 });

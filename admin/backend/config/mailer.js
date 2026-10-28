@@ -35,7 +35,8 @@ const getTransporter = () => {
 // Sends one mail. NEVER throws - the caller gets { status, error } and carries on, because no
 // appointment, payment or signup should break just because the mail server is unreachable.
 // status: "sent" | "failed" | "skipped" (no SMTP configured) | "none" (no address to send to)
-export const sendMail = async ({ to, subject, html, text }) => {
+// attachments / headers are optional (marketing emails: inline image + List-Unsubscribe)
+export const sendMail = async ({ to, subject, html, text, attachments, headers }) => {
   if (!to) return { status: "none" };
   if (!isMailConfigured()) {
     console.log(`[mail skipped - no SMTP configured] to=${to} subject=${subject}`);
@@ -48,6 +49,8 @@ export const sendMail = async ({ to, subject, html, text }) => {
       subject,
       text,
       html,
+      ...(attachments ? { attachments } : {}),
+      ...(headers ? { headers } : {}),
     });
     return { status: "sent" };
   } catch (error) {

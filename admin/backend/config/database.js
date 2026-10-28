@@ -6,6 +6,8 @@ import { createPatientTable } from "../model/patientModel.js";
 import { createAppointmentTable } from "../model/appointmentModel.js";
 import { createPaymentTable } from "../model/paymentModel.js";
 import { createNotificationTable } from "../model/notificationModel.js";
+import { createBookingSettingsTable } from "../model/settingsModel.js";
+import { createCampaignTables } from "../model/campaignModel.js";
 
 dotenv.config();
 
@@ -27,6 +29,8 @@ const connectDB = async () => {
     await createAppointmentTable();
     await createPaymentTable();
     await createNotificationTable(); // patient notification inbox + password reset codes
+    await createBookingSettingsTable(); // OPD daily limit + same-day booking cutoff
+    await createCampaignTables(); // Marketing module: campaigns + per-patient delivery ticks
     console.log("DB Connected");
   } catch (error) {
     console.log(`DB error ${error.message}`);

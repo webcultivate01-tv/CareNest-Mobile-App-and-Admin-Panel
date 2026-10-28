@@ -22,6 +22,8 @@ export const createDoctorTable = async () => {
   await query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS photo TEXT");
   await query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS qualifications TEXT");
   await query('ALTER TABLE doctors ADD COLUMN IF NOT EXISTS "appointmentDuration" INT NOT NULL DEFAULT 15');
+  // most appointments this doctor takes per day (NULL = only the slots limit it), see config/booking.js
+  await query('ALTER TABLE doctors ADD COLUMN IF NOT EXISTS "dailyLimit" INT CHECK ("dailyLimit" > 0)');
 
   // weekly schedule: one row per shift or break. weekday 0 = Sunday ... 6 = Saturday.
   // A day with no "shift" rows is a day off. Several shifts on one day = several rows.
@@ -102,6 +104,14 @@ export const setDoctorPhoto = async (id, photo) => {
 export const setDoctorStatus = async (id, isAvailable) => {
   const { rows } = await query('UPDATE doctors SET "isAvailable" = $1, "updatedAt" = now() WHERE id = $2 RETURNING *', [
     isAvailable,
+    id,
+  ]);
+  return rows[0];
+};
+
+export const setDoctorDailyLimit = async (id, dailyLimit) => {
+  const { rows } = await query('UPDATE doctors SET "dailyLimit" = $1, "updatedAt" = now() WHERE id = $2 RETURNING *', [
+    dailyLimit,
     id,
   ]);
   return rows[0];

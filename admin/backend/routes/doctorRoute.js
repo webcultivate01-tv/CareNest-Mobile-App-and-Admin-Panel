@@ -27,7 +27,8 @@ doctorRouter.post("/status/:doctorId", isAuth, requireModule("doctors"), changeD
 doctorRouter.delete("/remove/:doctorId", isAuth, requireModule("doctors"), removeDoctor);
 
 doctorRouter.get("/schedule/:doctorId", isAuth, requireModule("doctors", "appointments", "reports", "dashboard"), getSchedule);
-doctorRouter.post("/schedule/:doctorId", isAuth, requireModule("doctors"), saveSchedule);
+// also from Appointments -> Slots & limits, so front-desk staff can set a doctor's OPD hours
+doctorRouter.post("/schedule/:doctorId", isAuth, requireModule("doctors", "appointments"), saveSchedule);
 
 doctorRouter.get("/exceptions/:doctorId", isAuth, requireModule("doctors", "appointments", "reports", "dashboard"), getExceptions);
 doctorRouter.post("/exception/:doctorId", isAuth, requireModule("doctors"), createException);

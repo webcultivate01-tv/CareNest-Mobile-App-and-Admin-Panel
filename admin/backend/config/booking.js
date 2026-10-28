@@ -1,5 +1,6 @@
 import { pool, query } from "./database.js";
 import { findAppointmentById } from "../model/appointmentModel.js";
+import { findBookingSettings } from "../model/settingsModel.js";
 
 // Slot generation + booking rules. Used by the admin panel AND the patient app, so the
 // same checks run no matter who books. Everything is computed live from the database,
@@ -76,76 +77,154 @@ const weekdayOf = (dateStr) => {
 
 const overlaps = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && aEnd > bStart;
 
-// Free slots for a doctor on one day: [{ time: "09:15", startsAt: ISO string }].
-// Applies weekly shifts, breaks, date exceptions (full / partial day), existing appointments
-// and hides slots that have already started. excludeId = an appointment being moved.
-export const getDaySlots = async (doctor, dateStr, { db = { query }, excludeId = null } = {}) => {
-  if (!doctor.isAvailable) return [];
+// minutes since midnight -> "09:15"
+export const toHHMM = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
+// "13:30" -> "1:30 PM", for messages patients read
+const formatClock = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
+
+// Hospital booking rules that close a whole day (admin sets them, see model/settingsModel.js):
+//  - cutoffTime: after this clinic time no more appointments are taken for TODAY (other days stay open)
+//  - doctorLimit / hospitalLimit: most appointments per day for this doctor / all doctors together
+// Returns { code, message } or null. Pure, so it can be unit tested.
+export const dayClosedReason = ({ dateStr, today, nowMinutes, cutoffTime, doctorBooked, doctorLimit, hospitalBooked, hospitalLimit }) => {
+  if (cutoffTime && dateStr === today && nowMinutes >= toMinutes(cutoffTime)) {
+    return { code: "cutoff", message: `Bookings for today closed at ${formatClock(cutoffTime)}. Please choose another day.` };
+  }
+  if (doctorLimit && doctorBooked >= doctorLimit) {
+    return { code: "doctorFull", message: "This doctor is fully booked for this day. Please choose another day." };
+  }
+  if (hospitalLimit && hospitalBooked >= hospitalLimit) {
+    return { code: "hospitalFull", message: "OPD appointments for this day are full. Please choose another day." };
+  }
+  return null;
+};
+
+// Every slot of a doctor's day with its state - the admin slot manager shows all of it, getDaySlots
+// keeps only the free ones. excludeId = an appointment being moved (it does not block or count).
+//   slots: [{ time: "09:15", startsAt, state: "free" | "booked" | "past" | "blocked" | "break", ... }]
+//     booked  -> appointmentId, appointmentCode, patientName
+//     blocked -> exceptionId, exceptionReason, singleSlot (the exception covers exactly this slot)
+//   closed: why the whole day takes no bookings (inactive, leave, day off, cutoff, daily limit) or null
+//   doctorBooked / hospitalBooked: appointments that count towards the daily limits
+//     (hospitalBooked is only counted when a hospital limit is set, otherwise null)
+export const getDayBoard = async (doctor, dateStr, { db = { query }, excludeId = null } = {}) => {
   const duration = doctor.appointmentDuration;
   const weekday = weekdayOf(dateStr);
+  const dayStart = clinicTime(dateStr, 0);
+  const dayEnd = clinicTime(addDays(dateStr, 1), 0);
 
-  const [rules, exceptions] = await Promise.all([
+  const [rules, exceptions, booked, settings] = await Promise.all([
     db.query(
       `SELECT kind, to_char("startTime", 'HH24:MI') AS start, to_char("endTime", 'HH24:MI') AS "end"
        FROM doctor_schedule WHERE "doctorId" = $1 AND weekday = $2`,
       [doctor.id, weekday]
     ),
     db.query(
-      `SELECT "fullDay", to_char("startTime", 'HH24:MI') AS start, to_char("endTime", 'HH24:MI') AS "end"
+      `SELECT id, "fullDay", to_char("startTime", 'HH24:MI') AS start, to_char("endTime", 'HH24:MI') AS "end", reason
        FROM doctor_exceptions WHERE "doctorId" = $1 AND date = $2`,
       [doctor.id, dateStr]
     ),
+    db.query(
+      `SELECT a.id, a.code, a."scheduledAt", a."durationMinutes", p.name AS "patientName"
+       FROM appointments a JOIN patients p ON p.id = a."patientId"
+       WHERE a."doctorId" = $1 AND a.status <> 'cancelled' AND a.id <> $2
+         AND a."scheduledAt" < $4 AND a."scheduledAt" + (a."durationMinutes" * interval '1 minute') > $3`,
+      [doctor.id, excludeId || 0, dayStart, dayEnd]
+    ),
+    findBookingSettings(db),
   ]);
 
-  if (exceptions.rows.some((e) => e.fullDay)) return [];
+  const doctorBooked = booked.rows.filter((a) => new Date(a.scheduledAt) >= dayStart).length;
+  let hospitalBooked = null;
+  if (settings.dailyLimit) {
+    const { rows } = await db.query(
+      `SELECT count(*)::int AS count FROM appointments
+       WHERE status <> 'cancelled' AND id <> $1 AND "scheduledAt" >= $2 AND "scheduledAt" < $3`,
+      [excludeId || 0, dayStart, dayEnd]
+    );
+    hospitalBooked = rows[0].count;
+  }
+  const board = { closed: null, slots: [], doctorBooked, hospitalBooked, settings };
 
+  if (exceptions.rows.some((e) => e.fullDay)) {
+    return { ...board, closed: { code: "leave", message: "The doctor is not available on this day." } };
+  }
   const shifts = rules.rows.filter((r) => r.kind === "shift");
-  if (shifts.length === 0) return [];
+  if (shifts.length === 0) {
+    return { ...board, closed: { code: "dayOff", message: "The doctor does not work on this day." } };
+  }
 
-  // everything that blocks a slot, as minute ranges
-  const blocked = [
-    ...rules.rows.filter((r) => r.kind === "break"),
-    ...exceptions.rows.filter((e) => !e.fullDay),
-  ].map((r) => [toMinutes(r.start), toMinutes(r.end)]);
-
-  const dayStart = clinicTime(dateStr, 0);
-  const dayEnd = clinicTime(addDays(dateStr, 1), 0);
-  const booked = await db.query(
-    `SELECT "scheduledAt", "durationMinutes" FROM appointments
-     WHERE "doctorId" = $1 AND status <> 'cancelled' AND id <> $2
-       AND "scheduledAt" < $4 AND "scheduledAt" + ("durationMinutes" * interval '1 minute') > $3`,
-    [doctor.id, excludeId || 0, dayStart, dayEnd]
-  );
-  const bookedRanges = booked.rows.map((a) => {
+  const breaks = rules.rows.filter((r) => r.kind === "break").map((r) => [toMinutes(r.start), toMinutes(r.end)]);
+  const blocks = exceptions.rows.map((e) => ({ id: e.id, reason: e.reason, start: toMinutes(e.start), end: toMinutes(e.end) }));
+  const bookings = booked.rows.map((a) => {
     const start = new Date(a.scheduledAt).getTime();
-    return [start, start + a.durationMinutes * 60000];
+    return { a, start, end: start + a.durationMinutes * 60000 };
   });
 
   const now = Date.now();
   const seen = new Set();
-  const slots = [];
   for (const shift of shifts) {
     const end = toMinutes(shift.end);
     for (let t = toMinutes(shift.start); t + duration <= end; t += duration) {
       if (seen.has(t)) continue;
-      if (blocked.some(([bStart, bEnd]) => overlaps(t, t + duration, bStart, bEnd))) continue;
+      seen.add(t);
 
       const startsAt = clinicTime(dateStr, t);
       const startMs = startsAt.getTime();
-      if (startMs <= now) continue;
-      if (bookedRanges.some(([bStart, bEnd]) => overlaps(startMs, startMs + duration * 60000, bStart, bEnd))) continue;
-
-      seen.add(t);
-      slots.push({ time: `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`, startsAt: startsAt.toISOString(), minutes: t });
+      const slot = { time: toHHMM(t), startsAt: startsAt.toISOString(), minutes: t, state: "free" };
+      const booking = bookings.find((b) => overlaps(startMs, startMs + duration * 60000, b.start, b.end));
+      const block = blocks.find((b) => overlaps(t, t + duration, b.start, b.end));
+      if (booking) {
+        Object.assign(slot, { state: "booked", appointmentId: booking.a.id, appointmentCode: booking.a.code, patientName: booking.a.patientName });
+      } else if (startMs <= now) {
+        slot.state = "past";
+      } else if (block) {
+        Object.assign(slot, {
+          state: "blocked",
+          exceptionId: block.id,
+          exceptionReason: block.reason,
+          singleSlot: block.start === t && block.end === t + duration,
+        });
+      } else if (breaks.some(([bStart, bEnd]) => overlaps(t, t + duration, bStart, bEnd))) {
+        slot.state = "break";
+      }
+      board.slots.push(slot);
     }
   }
-  return slots.sort((a, b) => a.minutes - b.minutes).map(({ time, startsAt }) => ({ time, startsAt }));
+  board.slots = board.slots.sort((a, b) => a.minutes - b.minutes).map(({ minutes, ...slot }) => slot);
+
+  const clinicNow = clinicDateOf(new Date());
+  board.closed = !doctor.isAvailable
+    ? { code: "inactive", message: "This doctor is not accepting appointments right now." }
+    : dayClosedReason({
+        dateStr,
+        today: clinicNow.date,
+        nowMinutes: clinicNow.minutes,
+        cutoffTime: settings.cutoffTime,
+        doctorBooked,
+        doctorLimit: doctor.dailyLimit,
+        hospitalBooked,
+        hospitalLimit: settings.dailyLimit,
+      });
+  return board;
 };
 
+// Free slots for a doctor on one day: [{ time: "09:15", startsAt: ISO string }].
+// Applies weekly shifts, breaks, date exceptions (full / partial day), existing appointments,
+// the hospital booking rules (cutoff + daily limits) and hides slots that have already started.
+export const freeSlotsOf = ({ closed, slots }) =>
+  closed ? [] : slots.filter((s) => s.state === "free").map(({ time, startsAt }) => ({ time, startsAt }));
+
+export const getDaySlots = async (doctor, dateStr, options) => freeSlotsOf(await getDayBoard(doctor, dateStr, options));
+
 // Book (no id) or move (id given) an appointment, safely:
-//  - one transaction, with a lock per doctor so two requests can not pass the check together
-//  - slot is re-validated against schedule / leave / bookings on the server
+//  - one transaction, with one booking lock so two requests can not pass the check together (the
+//    hospital-wide daily limit counts every doctor's appointments, so a per-doctor lock is not enough)
+//  - slot is re-validated against schedule / leave / bookings / cutoff / daily limits on the server
 //  - fee + duration are copied from the doctor at booking time (kept if only the time-slot of the
 //    same doctor changes, refreshed if the doctor changes)
 export const saveAppointment = async ({ id = null, patientId, doctorId, scheduledAt, status, notes }) => {
@@ -155,7 +234,7 @@ export const saveAppointment = async ({ id = null, patientId, doctorId, schedule
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(7001, $1)", [Number(doctorId)]);
+    await client.query("SELECT pg_advisory_xact_lock(7001, 0)");
 
     const { rows } = await client.query("SELECT * FROM doctors WHERE id = $1", [doctorId]);
     const doctor = rows[0];
@@ -166,8 +245,9 @@ export const saveAppointment = async ({ id = null, patientId, doctorId, schedule
     if (!patient.rows[0]) throw new BookingError("Patient is not found", 404);
 
     const { date } = clinicDateOf(instant);
-    const slots = await getDaySlots(doctor, date, { db: client, excludeId: id });
-    if (!slots.some((s) => new Date(s.startsAt).getTime() === instant.getTime())) {
+    const board = await getDayBoard(doctor, date, { db: client, excludeId: id });
+    if (board.closed) throw new BookingError(board.closed.message, 409);
+    if (!board.slots.some((s) => s.state === "free" && new Date(s.startsAt).getTime() === instant.getTime())) {
       throw new BookingError("This time slot is not available. Please choose another slot.", 409);
     }
 

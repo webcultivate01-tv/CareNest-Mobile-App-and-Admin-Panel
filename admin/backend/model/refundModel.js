@@ -11,7 +11,9 @@ export const refundTypes = ["full", "partial"];
 
 // one row per distinct Razorpay refund id (payload->>'id'), using the most recent event for
 // that id as its current state, joined with the payment/patient/appointment it belongs to
-const refundsBaseCte = `
+// exported so the Refund Report (model/reportModel.js) derives its rows from this exact same event
+// log logic - one definition of "what a refund is" shared with the Refund Management pages
+export const refundsBaseCte = `
   latest_refund_events AS (
     SELECT pe.id, pe."paymentId", pe.payload, pe."createdAt",
       ROW_NUMBER() OVER (PARTITION BY (pe.payload->>'id') ORDER BY pe.id DESC) AS rn

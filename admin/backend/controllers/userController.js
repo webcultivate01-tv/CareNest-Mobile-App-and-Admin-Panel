@@ -11,6 +11,7 @@ import {
   findPatientById,
   findPatientForLogin,
   insertPatientUser,
+  setMarketingConsent,
 } from "../model/patientModel.js";
 
 // same shape the app already uses: name, mobile, dob, email
@@ -22,6 +23,7 @@ const toUser = (patient, req) => ({
   dob: patient.dob,
   email: patient.email,
   photo: photoUrl(req, patient.photo),
+  marketingConsent: Boolean(patient.marketingConsent), // offers & health updates (Marketing module)
 });
 
 // photos live in admin/uploads/patients/<patient name>/; after a name change move it to the new folder
@@ -181,5 +183,24 @@ export const deletePhoto = async (req, res) => {
     return res.status(200).json({ message: "Photo removed", user: toUser(patient, req) });
   } catch (error) {
     return res.status(500).json({ message: `DeletePhoto error ${error.message}` });
+  }
+};
+
+// Profile > "Offers & health updates": the patient's own yes / no to marketing on WhatsApp, SMS and
+// email (the Marketing module only messages patients who said yes)
+export const updateMarketingConsent = async (req, res) => {
+  try {
+    const { consent } = req.body;
+    if (typeof consent !== "boolean") {
+      return res.status(400).json({ message: "Consent must be true or false" });
+    }
+    await setMarketingConsent([req.userId], consent, "app");
+    const patient = await findPatientById(req.userId);
+    if (!patient) {
+      return res.status(404).json({ message: "User does not found" });
+    }
+    return res.status(200).json({ message: "Preference saved", user: toUser(patient, req) });
+  } catch (error) {
+    return res.status(500).json({ message: `UpdateMarketingConsent error ${error.message}` });
   }
 };

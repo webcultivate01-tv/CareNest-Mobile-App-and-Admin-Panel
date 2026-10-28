@@ -1,4 +1,4 @@
-import { addDays, clinicToday, getDaySlots, isValidDateString, saveAppointment } from "../config/booking.js";
+import { addDays, clinicToday, freeSlotsOf, getDayBoard, getDaySlots, isValidDateString, saveAppointment } from "../config/booking.js";
 import { photoUrl } from "../config/photos.js";
 import { razorpay, verifyCheckoutSignature } from "../config/razorpay.js";
 import { findAppointmentById, findAppointmentsByPatient } from "../model/appointmentModel.js";
@@ -98,10 +98,13 @@ export const getDoctorSlots = async (req, res) => {
     if (!isValidDateString(date)) {
       return res.status(400).json({ message: "Choose a valid date" });
     }
+    // closedReason tells the patient why a day has no slots (bookings closed for today, fully booked...)
+    const board = await getDayBoard(doctor, date);
     return res.status(200).json({
       doctor: toBookableDoctor(doctor, req),
       date,
-      slots: await getDaySlots(doctor, date),
+      slots: freeSlotsOf(board),
+      closedReason: board.closed?.message || null,
     });
   } catch (error) {
     return res.status(500).json({ message: `GetDoctorSlots error ${error.message}` });

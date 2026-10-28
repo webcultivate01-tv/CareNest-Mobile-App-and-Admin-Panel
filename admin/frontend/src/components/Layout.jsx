@@ -13,6 +13,7 @@ import {
   FiMenu,
   FiRotateCcw,
   FiSearch,
+  FiSend,
   FiShield,
   FiUser,
   FiUsers,
@@ -54,6 +55,7 @@ function Layout() {
     { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw />, module: "refunds" },
     { to: "/admins", label: "Admin Management", icon: <FiShield /> },
     { to: "/reports", label: "Reports", icon: <FiBarChart2 />, module: "reports" },
+    { to: "/marketing", label: "Marketing", icon: <FiSend />, module: "marketing" },
     { to: "/profile", label: "Profile Management", icon: <FiUser /> },
   ].filter((link) => !link.module || hasModule(adminData, link.module));
 

@@ -1,5 +1,5 @@
 import { query } from "../config/database.js";
-import { addDays, clinicTime, clinicToday, getDaySlots, isValidDateString, toMinutes } from "../config/booking.js";
+import { addDays, clinicTime, clinicToday, freeSlotsOf, getDayBoard, isValidDateString, toMinutes } from "../config/booking.js";
 import { movePhoto, removePhotoFile, savePhoto } from "../config/photos.js";
 import {
   deleteDoctorById,
@@ -19,7 +19,7 @@ import {
   updateExceptionById,
 } from "../model/doctorModel.js";
 
-const EXCEPTION_REASONS = ["Personal Leave", "Emergency", "Clinic Closed", "Other"];
+const EXCEPTION_REASONS = ["Personal Leave", "Emergency", "Clinic Closed", "Slot Blocked", "Other"];
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // multipart forms send everything as text
@@ -351,7 +351,9 @@ export const getSlots = async (req, res) => {
     if (!isValidDateString(date)) {
       return res.status(400).json({ message: "Choose a valid date" });
     }
-    return res.status(200).json({ date, slots: await getDaySlots(doctor, date) });
+    // closed = why the whole day takes no bookings (leave, cutoff, daily limit...), or null
+    const board = await getDayBoard(doctor, date);
+    return res.status(200).json({ date, slots: freeSlotsOf(board), closed: board.closed });
   } catch (error) {
     return res.status(500).json({ message: `GetSlots error ${error.message}` });
   }

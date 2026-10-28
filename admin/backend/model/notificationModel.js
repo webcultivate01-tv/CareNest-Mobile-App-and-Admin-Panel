@@ -22,6 +22,7 @@ export const notificationTypes = [
   "appointment_cancelled",
   "refund_processed",
   "password_changed",
+  "campaign", // a Marketing module message sent to the app inbox (config/campaignSender.js)
 ];
 
 export const createNotificationTable = async () => {
@@ -133,12 +134,13 @@ export const markNotificationRead = async (patientId, id) => {
   return rows[0];
 };
 
+// returns the ids that were marked (the Marketing module turns their ticks blue)
 export const markAllNotificationsRead = async (patientId) => {
-  const { rowCount } = await query(
-    `UPDATE notifications SET "readAt" = now() WHERE "patientId" = $1 AND "readAt" IS NULL`,
+  const { rows } = await query(
+    `UPDATE notifications SET "readAt" = now() WHERE "patientId" = $1 AND "readAt" IS NULL RETURNING id`,
     [patientId]
   );
-  return rowCount;
+  return rows.map((r) => r.id);
 };
 
 export const deleteNotification = async (patientId, id) => {

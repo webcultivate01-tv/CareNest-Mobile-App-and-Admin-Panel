@@ -11,6 +11,7 @@ import DoctorAvailability from "./pages/DoctorAvailability";
 import Patients from "./pages/Patients";
 import Appointments from "./pages/Appointments";
 import AppointmentDetail from "./pages/AppointmentDetail";
+import AppointmentSlots from "./pages/AppointmentSlots";
 import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
 import Refunds from "./pages/Refunds";
@@ -19,6 +20,10 @@ import Admins from "./pages/Admins";
 import AdminDetail from "./pages/AdminDetail";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
+import Marketing from "./pages/Marketing";
+import MarketingCompose from "./pages/MarketingCompose";
+import Campaigns from "./pages/Campaigns";
+import CampaignDetail from "./pages/CampaignDetail";
 import Layout from "./components/Layout";
 import useGetCurrentAdmin from "./CustomHooks/getCurrentAdmin";
 import useGetDoctors from "./CustomHooks/getDoctors";
@@ -68,6 +73,7 @@ function App() {
           <Route path="/doctors/:doctorId/availability" element={<Guard module="doctors"><DoctorAvailability /></Guard>} />
           <Route path="/patients" element={<Guard module="patients"><Patients /></Guard>} />
           <Route path="/appointments" element={<Guard module="appointments"><Appointments /></Guard>} />
+          <Route path="/appointments/slots" element={<Guard module="appointments"><AppointmentSlots /></Guard>} />
           <Route path="/appointments/:appointmentId" element={<Guard module="appointments"><AppointmentDetail /></Guard>} />
           <Route path="/payments" element={<Guard module="payments"><Payments /></Guard>} />
           <Route path="/payments/:paymentId" element={<Guard module="payments"><PaymentDetail /></Guard>} />
@@ -76,6 +82,10 @@ function App() {
           <Route path="/admins" element={<Admins />} />
           <Route path="/admins/:adminId" element={<AdminDetail />} />
           <Route path="/reports" element={<Guard module="reports"><Reports /></Guard>} />
+          <Route path="/marketing" element={<Guard module="marketing"><Marketing /></Guard>} />
+          <Route path="/marketing/new" element={<Guard module="marketing"><MarketingCompose /></Guard>} />
+          <Route path="/marketing/campaigns" element={<Guard module="marketing"><Campaigns /></Guard>} />
+          <Route path="/marketing/campaigns/:campaignId" element={<Guard module="marketing"><CampaignDetail /></Guard>} />
           <Route path="/profile" element={<Profile />} />
         </Route>
         <Route path="*" element={<Navigate to={"/"} />} />

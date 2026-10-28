@@ -60,6 +60,7 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
   const [days, setDays] = useState([]);
   const [date, setDate] = useState(null);
   const [slots, setSlots] = useState([]);
+  const [closedReason, setClosedReason] = useState(null); // e.g. "Bookings for today closed at 11:00 AM..."
   const [slot, setSlot] = useState(null);
   const [disease, setDisease] = useState(null);
   const [otherText, setOtherText] = useState('');
@@ -122,9 +123,11 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
     try {
       const data = await getDoctorSlots(await getToken(), doctor.id, day);
       setSlots(data.slots);
+      setClosedReason(data.closedReason || null);
       setError('');
     } catch (e) {
       setSlots([]);
+      setClosedReason(null);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -267,7 +270,7 @@ export default function BookingFlow({ visible, startDoctor = null, onClose, onBo
                   {loading ? (
                     <ActivityIndicator color={colors.primary} style={styles.gap} />
                   ) : slots.length === 0 ? (
-                    <Text style={styles.muted}>No free slots on this day.</Text>
+                    <Text style={styles.muted}>{closedReason || 'No free slots on this day.'}</Text>
                   ) : (
                     <View style={styles.wrap}>
                       {slots.map((s) => (

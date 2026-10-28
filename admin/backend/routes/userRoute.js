@@ -1,5 +1,13 @@
 import express from "express";
-import { deletePhoto, getCurrentUser, login, signUp, updateProfile, uploadPhoto } from "../controllers/userController.js";
+import {
+  deletePhoto,
+  getCurrentUser,
+  login,
+  signUp,
+  updateMarketingConsent,
+  updateProfile,
+  uploadPhoto,
+} from "../controllers/userController.js";
 import isUserAuth from "../middleware/isUserAuth.js";
 import {
   bookAppointment,
@@ -31,6 +39,7 @@ userRouter.post("/signup", signUp);
 userRouter.post("/login", login);
 userRouter.get("/getcurrentuser", isUserAuth, getCurrentUser);
 userRouter.put("/profile", isUserAuth, updateProfile);
+userRouter.put("/marketing-consent", isUserAuth, updateMarketingConsent); // { consent: true | false }
 // photo is saved in admin/uploads/patients/<patient name>/
 userRouter.post("/photo", isUserAuth, receivePhoto, uploadPhoto);
 userRouter.delete("/photo", isUserAuth, deletePhoto);

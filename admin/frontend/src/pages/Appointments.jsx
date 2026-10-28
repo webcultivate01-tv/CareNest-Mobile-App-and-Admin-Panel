@@ -35,15 +35,21 @@ function Appointments() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("confirmed");
   const [slots, setSlots] = useState(null); // free slots for the chosen doctor + date (null = not loaded)
+  const [closedReason, setClosedReason] = useState(""); // why the whole day is closed (cutoff, daily limit...)
 
   // only valid, free slots can be picked; the server checks again when saving
   useEffect(() => {
     setSlots(null);
+    setClosedReason("");
     if (!form.doctorId || !form.date) return;
     let current = true;
     axios
       .get(serverUrl + `/api/doctor/slots/${form.doctorId}?date=${form.date}`, { withCredentials: true })
-      .then((result) => current && setSlots(result.data.slots))
+      .then((result) => {
+        if (!current) return;
+        setSlots(result.data.slots);
+        setClosedReason(result.data.closed?.message || "");
+      })
       .catch(() => current && setSlots([]));
     return () => {
       current = false;
@@ -145,12 +151,20 @@ function Appointments() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Appointments</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm"
-        >
-          + New Appointment
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/appointments/slots")}
+            className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm"
+          >
+            Slots & limits
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            + New Appointment
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -322,7 +336,7 @@ function Appointments() {
                   : slots === null
                     ? "Loading slots..."
                     : slots.length === 0
-                      ? "No free slots on this date"
+                      ? closedReason || "No free slots on this date"
                       : "Select time slot"}
               </option>
               {(slots || []).map((slot) => (

@@ -61,6 +61,10 @@ export const updateProfile = (token, form) =>
     body: { name: form.name.trim(), mobile: form.mobile, dob: form.dob },
   });
 
+// Offers & health updates on WhatsApp / SMS / email (yes = true). Returns { user }.
+export const setMarketingConsent = (token, consent) =>
+  request('/api/user/marketing-consent', { method: 'PUT', token, body: { consent } });
+
 // Sends FormData with XMLHttpRequest. Expo's fetch (SDK 57) can not send a
 // { uri, name, type } file part, but React Native's XMLHttpRequest can.
 function uploadForm(path, data, token) {
@@ -106,7 +110,7 @@ export const getDoctors = (token) => request('/api/user/doctors', { token });
 // { doctor, days: [{ date, freeSlots }] }
 export const getDoctorDays = (token, doctorId) => request(`/api/user/doctordays/${doctorId}`, { token });
 
-// { doctor, date, slots: [{ time, startsAt }] }
+// { doctor, date, slots: [{ time, startsAt }], closedReason: string | null }
 export const getDoctorSlots = (token, doctorId, date) =>
   request(`/api/user/doctorslots/${doctorId}?date=${date}`, { token });
 

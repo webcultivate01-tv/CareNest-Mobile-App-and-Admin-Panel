@@ -38,6 +38,7 @@ const LOOKS = {
   appointment_cancelled: { icon: 'close-circle', tone: 'danger' },
   refund_processed: { icon: 'cash', tone: 'brand' },
   password_changed: { icon: 'lock-closed', tone: 'brand' },
+  campaign: { icon: 'megaphone', tone: 'brand' }, // a message from the hospital (Marketing)
 };
 
 const TONES = {

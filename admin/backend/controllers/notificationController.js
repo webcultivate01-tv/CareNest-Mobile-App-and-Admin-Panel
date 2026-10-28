@@ -5,6 +5,12 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "../model/notificationModel.js";
+import { markAppMessagesRead } from "../model/campaignModel.js";
+
+// Marketing messages sent to the app inbox show blue ticks in the admin panel once read. That is
+// bookkeeping only: it must never make the patient's own request fail.
+const markCampaignTicks = (ids) =>
+  markAppMessagesRead(ids).catch((error) => console.log(`Campaign read tick error ${error.message}`));
 
 // The patient inbox behind the bell icon in the mobile app. Every route here is mounted under
 // isUserAuth and only ever touches req.userId, so a patient can only read and change their own
@@ -42,7 +48,8 @@ export const readNotification = async (req, res) => {
       return res.status(404).json({ message: "Notification is not found" });
     }
     // already-read rows return no row; that is not an error, the end state is the same
-    await markNotificationRead(req.userId, req.params.notificationId);
+    const marked = await markNotificationRead(req.userId, req.params.notificationId);
+    if (marked) await markCampaignTicks([marked.id]);
     return res.status(200).json({ message: "Notification read", unread: await countUnreadNotifications(req.userId) });
   } catch (error) {
     return sendError(res, "ReadNotification", error);
@@ -51,8 +58,9 @@ export const readNotification = async (req, res) => {
 
 export const readAllNotifications = async (req, res) => {
   try {
-    const count = await markAllNotificationsRead(req.userId);
-    return res.status(200).json({ message: `${count} notification(s) marked as read`, unread: 0 });
+    const ids = await markAllNotificationsRead(req.userId);
+    await markCampaignTicks(ids);
+    return res.status(200).json({ message: `${ids.length} notification(s) marked as read`, unread: 0 });
   } catch (error) {
     return sendError(res, "ReadAllNotifications", error);
   }

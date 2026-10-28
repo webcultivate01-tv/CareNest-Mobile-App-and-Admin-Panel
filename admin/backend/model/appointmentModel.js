@@ -45,7 +45,7 @@ export const createAppointmentTable = async () => {
   }
   await query(`ALTER TABLE appointments ALTER COLUMN code SET DEFAULT 'CNAP-' || lpad(nextval('appointment_no_seq')::text, 3, '0')`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS appointments_code_key ON appointments (code)`);
-  // last line of defence against double booking (bookings also take a per-doctor lock, see config/booking.js)
+  // last line of defence against double booking (bookings also take a booking lock, see config/booking.js)
   try {
     await query(
       `CREATE UNIQUE INDEX IF NOT EXISTS appointments_doctor_slot_key

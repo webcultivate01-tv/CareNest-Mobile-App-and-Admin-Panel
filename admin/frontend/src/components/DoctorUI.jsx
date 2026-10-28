@@ -19,7 +19,7 @@ export const WEEK = [
   { weekday: 0, short: "Sun", name: "Sunday" },
 ];
 
-export const LEAVE_REASONS = ["Personal Leave", "Emergency", "Clinic Closed", "Other"];
+export const LEAVE_REASONS = ["Personal Leave", "Emergency", "Clinic Closed", "Slot Blocked", "Other"];
 
 // "13:30" -> "1:30 PM"
 export const formatTime = (hhmm) => {

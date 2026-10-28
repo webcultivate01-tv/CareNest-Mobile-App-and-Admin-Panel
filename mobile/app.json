@@ -15,7 +15,11 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.tejasmehar01.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +33,11 @@
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "23ed8604-5290-4c97-9cbf-d88dba68b915"
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -17,7 +18,7 @@ import AuthInput from '../components/AuthInput';
 import SideMenu from '../components/SideMenu';
 import { useLanguage } from '../i18n';
 import { colors } from '../theme/colors';
-import { deletePhoto, getToken, updateProfile, uploadPhoto } from '../api';
+import { deletePhoto, getToken, setMarketingConsent, updateProfile, uploadPhoto } from '../api';
 
 // Turns "25121990" into "25/12/1990" while the user types.
 function formatDob(text) {
@@ -84,8 +85,22 @@ export default function ProfileScreen({ user, onUserChange, onLogout, onOpenNoti
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [consentBusy, setConsentBusy] = useState(false);
 
-  const set = (key) => (value) => setForm({ ...form, [key]: value });
+  // Offers & health updates: the hospital only sends WhatsApp / SMS / email marketing with a yes
+  const toggleConsent = async (value) => {
+    setConsentBusy(true);
+    try {
+      const data = await setMarketingConsent(await getToken(), value);
+      onUserChange(data.user);
+    } catch (err) {
+      Alert.alert('Could not save', err.message);
+    } finally {
+      setConsentBusy(false);
+    }
+  };
+
+  const set =(key) => (value) => setForm({ ...form, [key]: value });
 
   const startEdit = () => {
     setForm({ name: user.name || '', mobile: user.mobile || '', dob: user.dob || '' });
@@ -273,6 +288,25 @@ export default function ProfileScreen({ user, onUserChange, onLogout, onOpenNoti
             />
           </>
         )}
+      </View>
+      {/* Marketing consent */}
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <IconCircle icon="megaphone-outline" />
+          <View style={styles.rowText}>
+            <Text style={styles.menuTitle}>Offers & health updates</Text>
+            <Text style={styles.menuSubtitle}>Health camps, offers and tips on WhatsApp, SMS and email</Text>
+          </View>
+          {consentBusy ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Switch
+              value={Boolean(user.marketingConsent)}
+              onValueChange={toggleConsent}
+              trackColor={{ true: colors.primary }}
+            />
+          )}
+        </View>
       </View>
       <SideMenu
         visible={menuOpen}
