@@ -16,6 +16,7 @@ import refundRouter from "./routes/refundRoute.js";
 import reportRouter from "./routes/reportRoute.js";
 import webhookRouter from "./routes/webhookRoute.js";
 import marketingRouter from "./routes/marketingRoute.js";
+import queueRouter from "./routes/queueRoute.js";
 import { UPLOADS_DIR } from "./config/paths.js";
 import { deleteUnpaidAppointments, renumberAppointmentCodes } from "./model/appointmentModel.js";
 import { startReminderScheduler } from "./config/reminders.js";
@@ -51,6 +52,7 @@ app.use("/api/refund", refundRouter);
 app.use("/api/report", reportRouter);
 app.use("/api/webhook", webhookRouter);
 app.use("/api/marketing", marketingRouter);
+app.use("/api/queue", queueRouter); // live queue: check-in, call next, complete
 app.use("/api/user", userRouter); // mobile app: signup / login
 
 app.get("/", (req, res) => res.send("CareNest Admin API"));

@@ -121,6 +121,10 @@ export const bookAppointment = (token, doctorId, scheduledAt, notes) =>
 // [{ id, doctorName, doctorSpecialty, doctorPhoto, scheduledAt, status, notes, fee }] newest first
 export const getMyAppointments = (token) => request('/api/user/myappointments', { token });
 
+// My place in today's live queue:
+// [{ appointmentId, doctorName, doctorSpecialty, scheduledAt, queueState, token, ahead, waitMinutes, nowServingToken }]
+export const getMyQueue = (token) => request('/api/user/queue', { token });
+
 // ---- payment (Razorpay) ----
 
 // { orderId, amount, currency, keyId, name, email, contact } - open RazorpayCheckout with these

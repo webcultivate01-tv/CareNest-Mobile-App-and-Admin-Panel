@@ -4,6 +4,7 @@ import { createAdminTable } from "../model/adminModel.js";
 import { createDoctorTable } from "../model/doctorModel.js";
 import { createPatientTable } from "../model/patientModel.js";
 import { createAppointmentTable } from "../model/appointmentModel.js";
+import { createQueueColumns, createQueueIndex } from "../model/queueModel.js";
 import { createPaymentTable } from "../model/paymentModel.js";
 import { createNotificationTable } from "../model/notificationModel.js";
 import { createBookingSettingsTable } from "../model/settingsModel.js";
@@ -27,6 +28,8 @@ const connectDB = async () => {
     await createDoctorTable();
     await createPatientTable();
     await createAppointmentTable();
+    await createQueueColumns(); // live queue timestamps on appointments
+    await createQueueIndex();
     await createPaymentTable();
     await createNotificationTable(); // patient notification inbox + password reset codes
     await createBookingSettingsTable(); // OPD daily limit + same-day booking cutoff

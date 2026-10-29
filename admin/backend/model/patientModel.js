@@ -1,7 +1,7 @@
 import { query } from "../config/database.js";
 
 // never send the password hash to the admin panel / app (phone = mobile number)
-const publicColumns = `id, name, email, phone, code, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "marketingConsent", "createdAt", "updatedAt"`;
+const publicColumns = `id, name, email, phone, address, code, to_char(dob, 'DD/MM/YYYY') AS dob, photo, "marketingConsent", "createdAt", "updatedAt"`;
 
 // where a marketing consent change came from (shown in the admin panel)
 export const consentSources = ["app", "staff", "unsubscribe_link", "whatsapp_stop"];
@@ -21,6 +21,7 @@ export const createPatientTable = async () => {
   await query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS dob DATE");
   await query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS password TEXT");
   await query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS photo TEXT"); // path under uploads/
+  await query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS address TEXT");
   await query(
     "CREATE UNIQUE INDEX IF NOT EXISTS patients_phone_key ON patients (phone) WHERE phone IS NOT NULL"
   );
@@ -56,17 +57,19 @@ export const findPatientById = async (id) => {
 
 export const insertPatient = async (p) => {
   const { rows } = await query(
-    `INSERT INTO patients (name, email, phone) VALUES ($1, $2, $3) RETURNING ${publicColumns}`,
-    [p.name, p.email, p.phone]
+    `INSERT INTO patients (name, email, phone, dob, address)
+     VALUES ($1, $2, $3, to_date($4, 'DD/MM/YYYY'), $5) RETURNING ${publicColumns}`,
+    [p.name, p.email, p.phone, p.dob, p.address]
   );
   return rows[0];
 };
 
 export const updatePatientById = async (id, p) => {
   const { rows } = await query(
-    `UPDATE patients SET name = $1, email = $2, phone = $3, "updatedAt" = now()
-     WHERE id = $4 RETURNING ${publicColumns}`,
-    [p.name, p.email, p.phone, id]
+    `UPDATE patients SET name = $1, email = $2, phone = $3, dob = to_date($4, 'DD/MM/YYYY'), address = $5,
+       "updatedAt" = now()
+     WHERE id = $6 RETURNING ${publicColumns}`,
+    [p.name, p.email, p.phone, p.dob, p.address, id]
   );
   return rows[0];
 };
@@ -249,4 +252,21 @@ export const revokeConsentByPhone = async (digits, source) => {
     [String(digits).replace(/\D/g, ""), source]
   );
   return rows.map((r) => r.id);
+};
+
+// ---- admin patient profile page ----
+
+// every payment attempt of one patient, newest first, with the appointment it was for
+export const findPaymentsByPatient = async (patientId) => {
+  const { rows } = await query(
+    `SELECT p.id, p.amount, p.status, p.method, p."refundedAmount", p."failureReason", p."providerPaymentId",
+       p."createdAt", p."capturedAt", a.id AS "appointmentId", a.code AS "appointmentCode", d.name AS "doctorName"
+     FROM payments p
+     JOIN appointments a ON a.id = p."appointmentId"
+     JOIN doctors d ON d.id = a."doctorId"
+     WHERE p."patientId" = $1
+     ORDER BY COALESCE(p."capturedAt", p."createdAt") DESC`,
+    [patientId]
+  );
+  return rows;
 };

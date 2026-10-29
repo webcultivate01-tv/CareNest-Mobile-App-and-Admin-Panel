@@ -9,9 +9,11 @@ import DoctorForm from "./pages/DoctorForm";
 import DoctorDetail from "./pages/DoctorDetail";
 import DoctorAvailability from "./pages/DoctorAvailability";
 import Patients from "./pages/Patients";
+import PatientDetail from "./pages/PatientDetail";
 import Appointments from "./pages/Appointments";
 import AppointmentDetail from "./pages/AppointmentDetail";
 import AppointmentSlots from "./pages/AppointmentSlots";
+import LiveQueue from "./pages/LiveQueue";
 import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
 import Refunds from "./pages/Refunds";
@@ -72,9 +74,11 @@ function App() {
           <Route path="/doctors/:doctorId/edit" element={<Guard module="doctors"><DoctorForm /></Guard>} />
           <Route path="/doctors/:doctorId/availability" element={<Guard module="doctors"><DoctorAvailability /></Guard>} />
           <Route path="/patients" element={<Guard module="patients"><Patients /></Guard>} />
+          <Route path="/patients/:patientId" element={<Guard module="patients"><PatientDetail /></Guard>} />
           <Route path="/appointments" element={<Guard module="appointments"><Appointments /></Guard>} />
           <Route path="/appointments/slots" element={<Guard module="appointments"><AppointmentSlots /></Guard>} />
           <Route path="/appointments/:appointmentId" element={<Guard module="appointments"><AppointmentDetail /></Guard>} />
+          <Route path="/queue" element={<Guard module="queue"><LiveQueue /></Guard>} />
           <Route path="/payments" element={<Guard module="payments"><Payments /></Guard>} />
           <Route path="/payments/:paymentId" element={<Guard module="payments"><PaymentDetail /></Guard>} />
           <Route path="/refunds" element={<Guard module="refunds"><Refunds /></Guard>} />

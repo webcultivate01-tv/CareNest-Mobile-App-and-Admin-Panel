@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
+  FiActivity,
   FiBarChart2,
   FiBell,
   FiCalendar,
@@ -51,6 +52,7 @@ function Layout() {
     { to: "/doctors", label: "Doctor Management", icon: <FaUserMd />, module: "doctors" },
     { to: "/patients", label: "Patient Management", icon: <FiUsers />, module: "patients" },
     { to: "/appointments", label: "Appointments", icon: <FiCalendar />, module: "appointments" },
+    { to: "/queue", label: "Live Queue", icon: <FiActivity />, module: "queue" },
     { to: "/payments", label: "Payments Management", icon: <FiCreditCard />, module: "payments" },
     { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw />, module: "refunds" },
     { to: "/admins", label: "Admin Management", icon: <FiShield /> },

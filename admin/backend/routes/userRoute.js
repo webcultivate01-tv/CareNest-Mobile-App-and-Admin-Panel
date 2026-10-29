@@ -33,6 +33,8 @@ import {
   removeNotification,
 } from "../controllers/notificationController.js";
 
+import { getMyQueue } from "../controllers/queueController.js";
+
 const userRouter = express.Router();
 
 userRouter.post("/signup", signUp);
@@ -50,6 +52,7 @@ userRouter.get("/doctordays/:doctorId", isUserAuth, getDoctorDays);
 userRouter.get("/doctorslots/:doctorId", isUserAuth, getDoctorSlots); // ?date=YYYY-MM-DD
 userRouter.post("/bookappointment", isUserAuth, bookAppointment);
 userRouter.get("/myappointments", isUserAuth, getMyAppointments);
+userRouter.get("/queue", isUserAuth, getMyQueue); // my place in today's live queue
 
 // payment for an already-booked appointment (see bookingController.js)
 userRouter.post("/payment/order", isUserAuth, createPaymentOrder);

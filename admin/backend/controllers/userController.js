@@ -33,7 +33,7 @@ export const keepPatientPhotoWithName = async (patient) => {
 };
 
 // checks DD/MM/YYYY is a real date in the past
-const isValidDob = (text) => {
+export const isValidDob = (text) => {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text || "");
   if (!m) return false;
   const [day, month, year] = [Number(m[1]), Number(m[2]), Number(m[3])];

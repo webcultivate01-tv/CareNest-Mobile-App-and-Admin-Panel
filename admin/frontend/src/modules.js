@@ -5,6 +5,7 @@ export const MODULES = [
   { key: "doctors", label: "Doctors", path: "/doctors", description: "Doctor profiles and availability" },
   { key: "patients", label: "Patients", path: "/patients", description: "Patient records" },
   { key: "appointments", label: "Appointments", path: "/appointments", description: "Bookings, edits and cancellations" },
+  { key: "queue", label: "Live Queue", path: "/queue", description: "Check in patients, call the next one and mark consultations complete" },
   { key: "payments", label: "Payments", path: "/payments", description: "Payment history and receipts" },
   { key: "refunds", label: "Refunds", path: "/refunds", description: "Refund status and history" },
   { key: "reports", label: "Reports", path: "/reports", description: "Analytics and reports" },

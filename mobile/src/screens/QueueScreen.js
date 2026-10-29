@@ -1,12 +1,21 @@
-// "Live Queue": today's upcoming appointments of the signed-in user. Empty when there is nothing today.
+// "Live Queue": where the signed-in user stands in today's doctor queues, refreshed every few seconds.
+// Empty when there is nothing today.
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { getMyAppointments, getToken } from '../api';
+import { getMyQueue, getToken } from '../api';
 
-const REFRESH_MS = 15000;
-const sameDay = (a, b) => a.toDateString() === b.toDateString();
+const REFRESH_MS = 5000;
+
+const timeOf = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+const statusText = (q) => {
+  if (q.queueState === 'in_consultation') return "You're with the doctor now";
+  if (q.queueState === 'done') return 'Consultation completed';
+  if (q.ahead === 0) return "You're next";
+  return `${q.ahead} patient${q.ahead === 1 ? '' : 's'} ahead of you`;
+};
 
 export default function QueueScreen({ refreshKey }) {
   const [items, setItems] = useState(null); // null = first load
@@ -14,13 +23,7 @@ export default function QueueScreen({ refreshKey }) {
 
   const load = useCallback(async () => {
     try {
-      const all = await getMyAppointments(await getToken());
-      const today = new Date();
-      setItems(
-        all
-          .filter((a) => ['pending', 'confirmed'].includes(a.status) && sameDay(new Date(a.scheduledAt), today))
-          .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
-      );
+      setItems(await getMyQueue(await getToken()));
       setError('');
     } catch (e) {
       setError(e.message);
@@ -39,22 +42,35 @@ export default function QueueScreen({ refreshKey }) {
       {items === null && !error ? (
         <ActivityIndicator size="large" color={colors.primary} style={styles.gap} />
       ) : items && items.length > 0 ? (
-        <View style={styles.list}>
-          {items.map((a, i) => (
-            <View key={a.id} style={styles.card}>
-              <View style={styles.position}>
-                <Text style={styles.positionText}>{i + 1}</Text>
+        <ScrollView contentContainerStyle={styles.list}>
+          {items.map((q) => {
+            const active = q.queueState === 'in_consultation';
+            const done = q.queueState === 'done';
+            return (
+              <View key={q.appointmentId} style={[styles.card, active && styles.cardActive]}>
+                <View style={styles.top}>
+                  <View style={styles.info}>
+                    <Text style={styles.name}>{q.doctorName}</Text>
+                    <Text style={styles.muted}>
+                      {q.doctorSpecialty} · {timeOf(q.scheduledAt)}
+                    </Text>
+                  </View>
+                  <View style={styles.token}>
+                    <Text style={styles.tokenLabel}>TOKEN</Text>
+                    <Text style={styles.tokenNumber}>{q.token}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.status, done && styles.muted, active && styles.statusActive]}>{statusText(q)}</Text>
+                {!done && !active ? (
+                  <Text style={styles.muted}>
+                    Now serving: {q.nowServingToken ? `Token ${q.nowServingToken}` : 'not started yet'}
+                    {q.ahead > 0 && q.waitMinutes > 0 ? ` · about ${q.waitMinutes} min wait` : ''}
+                  </Text>
+                ) : null}
               </View>
-              <View style={styles.info}>
-                <Text style={styles.name}>{a.doctorName}</Text>
-                <Text style={styles.muted}>{a.doctorSpecialty}</Text>
-                <Text style={styles.time}>
-                  {new Date(a.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            );
+          })}
+        </ScrollView>
       ) : (
         <View style={styles.empty}>
           <Ionicons name="people-outline" size={48} color={colors.textMuted} />
@@ -76,27 +92,28 @@ const styles = StyleSheet.create({
   gap: { marginTop: 40 },
   list: { paddingHorizontal: 16, gap: 12 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: 6,
+    padding: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  position: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  positionText: { fontSize: 18, fontWeight: '700', color: colors.primary },
+  cardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   info: { flex: 1, gap: 2 },
   name: { fontSize: 16, fontWeight: '600', color: colors.text },
-  time: { fontSize: 13, fontWeight: '600', color: colors.primary, marginTop: 2 },
+  token: {
+    minWidth: 60,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+  },
+  tokenLabel: { fontSize: 10, fontWeight: '700', color: colors.primary },
+  tokenNumber: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  status: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 4 },
+  statusActive: { color: colors.primaryDark },
   muted: { fontSize: 13, color: colors.textMuted },
   empty: { alignItems: 'center', gap: 8, marginTop: 80 },
   retry: { color: colors.primary, fontWeight: '600' },
