@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
+import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import { serverUrl } from "../App";
+import { hasModule } from "../modules";
 
 const REFRESH_MS = 5000;
 const stateStyle = {
@@ -19,6 +22,18 @@ const timeOf = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numer
 function LiveQueue() {
   const [board, setBoard] = useState(null);
   const [busy, setBusy] = useState(null); // key of the button being processed
+  const { adminData } = useSelector((state) => state.admin);
+  const canViewPatient = hasModule(adminData, "patients");
+
+  // patient name; opens the patient's detail page when this user has the Patients module
+  const PatientName = ({ p, className = "" }) =>
+    canViewPatient ? (
+      <Link to={`/patients/${p.patientId}`} className={`hover:underline ${className}`}>
+        {p.patientName}
+      </Link>
+    ) : (
+      <span className={className}>{p.patientName}</span>
+    );
 
   const load = useCallback(async () => {
     try {
@@ -101,7 +116,9 @@ function LiveQueue() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xs text-emerald-700">Now serving · Token {doctor.nowServing.token}</p>
-                        <p className="font-medium">{doctor.nowServing.patientName}</p>
+                        <p className="font-medium">
+                          <PatientName p={doctor.nowServing} />
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -150,13 +167,22 @@ function LiveQueue() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className={`text-sm font-medium truncate ${p.queueState === "done" ? "text-gray-400" : ""}`}>
-                            {p.patientName}
+                            <PatientName p={p} />
                           </p>
                           <p className="text-xs text-gray-500">
                             {timeOf(p.scheduledAt)} · {p.code}
                           </p>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-xs ${style.cls}`}>{style.label}</span>
+                        {p.queueState === "in_consultation" && (
+                          <Button
+                            id={`c${p.id}`}
+                            onClick={() => act(`c${p.id}`, `/api/queue/complete/${p.id}`)}
+                            className="bg-white border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Mark completed
+                          </Button>
+                        )}
                         {p.queueState === "booked" && (
                           <Button
                             id={`i${p.id}`}

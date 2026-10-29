@@ -126,7 +126,9 @@ function Appointments() {
 
   // search matches name, email, phone, ids and the date (as dd/mm/yyyy, yyyy-mm-dd or "12 Oct 2026")
   const query = search.trim().toLowerCase();
-  const filteredAppointments = appointmentData.filter((a) => {
+  const filteredAppointments = [...appointmentData]
+    .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt))
+    .filter((a) => {
     if (statusFilter !== "all" && a.status !== statusFilter) return false;
     if (!query) return true;
     const d = new Date(a.scheduledAt);
@@ -211,6 +213,7 @@ function Appointments() {
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
+              <th className="px-4 py-3">No</th>
               <th className="px-4 py-3">Appointment ID</th>
               <th className="px-4 py-3">Patient</th>
               <th className="px-4 py-3">Doctor</th>
@@ -222,8 +225,9 @@ function Appointments() {
             </tr>
           </thead>
           <tbody>
-            {filteredAppointments.map((appointment) => (
+            {filteredAppointments.map((appointment, index) => (
               <tr key={appointment.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 tabular-nums text-gray-500">{index + 1}</td>
                 <td className="px-4 py-3 tabular-nums">{appointment.code}</td>
                 <td className="px-4 py-3 font-medium">{appointment.patientName}</td>
                 <td className="px-4 py-3">
@@ -279,7 +283,7 @@ function Appointments() {
             ))}
             {filteredAppointments.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                   {appointmentData.length === 0 ? "No appointments yet" : "No appointments match your search"}
                 </td>
               </tr>

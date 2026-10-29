@@ -185,6 +185,17 @@ export const getMyQueue = async (req, res) => {
           ahead: p.ahead,
           waitMinutes: p.waitMinutes,
           nowServingToken: doctor.nowServing?.token ?? null,
+          patientName: p.patientName,
+          // the doctor's whole day by token; other patients are anonymous (token + state only)
+          queue: [...doctor.patients]
+            .sort((a, b) => a.token - b.token)
+            .map((q) => ({
+              token: q.token,
+              queueState: q.queueState,
+              scheduledAt: q.scheduledAt,
+              isMe: q.patientId === req.userId,
+              ...(q.patientId === req.userId ? { patientName: q.patientName } : {}),
+            })),
         }))
     );
     return res.status(200).json(entries.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)));

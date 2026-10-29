@@ -17,6 +17,13 @@ const statusText = (q) => {
   return `${q.ahead} patient${q.ahead === 1 ? '' : 's'} ahead of you`;
 };
 
+const stateLabel = {
+  in_consultation: 'In consultation',
+  waiting: 'Waiting',
+  booked: 'Not arrived',
+  done: 'Done',
+};
+
 export default function QueueScreen({ refreshKey }) {
   const [items, setItems] = useState(null); // null = first load
   const [error, setError] = useState('');
@@ -67,6 +74,27 @@ export default function QueueScreen({ refreshKey }) {
                     {q.ahead > 0 && q.waitMinutes > 0 ? ` · about ${q.waitMinutes} min wait` : ''}
                   </Text>
                 ) : null}
+                {q.queue && q.queue.length > 0 ? (
+                  <View style={styles.list2}>
+                    {q.queue.map((row) => {
+                      const state = stateLabel[row.queueState];
+                      return (
+                        <View key={row.token} style={[styles.row, row.isMe && styles.rowMe]}>
+                          <Text style={[styles.rowToken, row.isMe && styles.rowMeText]}>{row.token}</Text>
+                          <View style={styles.info}>
+                            <Text
+                              style={[styles.rowName, row.queueState === 'done' && styles.muted, row.isMe && styles.rowMeText]}
+                            >
+                              {row.isMe ? `${row.patientName} (You)` : `Patient · Token ${row.token}`}
+                            </Text>
+                            <Text style={styles.muted}>{timeOf(row.scheduledAt)}</Text>
+                          </View>
+                          <Text style={[styles.rowState, row.isMe && styles.rowMeText]}>{state}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
             );
           })}
@@ -115,6 +143,13 @@ const styles = StyleSheet.create({
   status: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 4 },
   statusActive: { color: colors.primaryDark },
   muted: { fontSize: 13, color: colors.textMuted },
+  list2: { marginTop: 8, gap: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10 },
+  rowMe: { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  rowToken: { width: 24, fontSize: 14, fontWeight: '700', color: colors.textMuted },
+  rowName: { fontSize: 14, color: colors.text },
+  rowState: { fontSize: 12, color: colors.textMuted },
+  rowMeText: { color: colors.primaryDark, fontWeight: '700' },
   empty: { alignItems: 'center', gap: 8, marginTop: 80 },
   retry: { color: colors.primary, fontWeight: '600' },
 });

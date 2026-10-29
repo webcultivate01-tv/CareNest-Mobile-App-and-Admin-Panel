@@ -12,7 +12,6 @@ import {
   DoctorStatusBadge,
   cardClass,
   formatMoney,
-  summarizeSchedule,
   useReplaceDoctor,
 } from "../components/DoctorUI";
 import { fetchDoctors } from "../CustomHooks/getDoctors";
@@ -108,20 +107,24 @@ function Doctors() {
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wider text-gray-400">
-                  <th className="pl-5 pr-3 py-3 font-semibold">Doctor</th>
+                  <th className="pl-5 pr-3 py-3 font-semibold">No</th>
+                  <th className="px-3 py-3 font-semibold">Doctor</th>
                   <th className="hidden md:table-cell px-3 py-3 font-semibold">Specialization</th>
                   <th className="hidden sm:table-cell px-3 py-3 font-semibold">Fee</th>
-                  <th className="hidden lg:table-cell px-3 py-3 font-semibold">Working schedule</th>
                   <th className="px-3 py-3 font-semibold">Status</th>
                   <th className="pl-3 pr-5 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((doctor) => {
-                  const schedule = summarizeSchedule(doctor.schedule);
+                {filtered.map((doctor, index) => {
                   return (
-                    <tr key={doctor.id} className="border-t border-gray-100 hover:bg-gray-50/70">
-                      <td className="pl-5 pr-3 py-3">
+                    <tr
+                      key={doctor.id}
+                      onClick={() => navigate(`/doctors/${doctor.id}`)}
+                      className="border-t border-gray-100 hover:bg-gray-50/70 cursor-pointer"
+                    >
+                      <td className="pl-5 pr-3 py-3 tabular-nums text-gray-500">{index + 1}</td>
+                      <td className="px-3 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar name={doctor.name} photo={doctor.photo} />
                           <div className="min-w-0">
@@ -141,22 +144,11 @@ function Doctors() {
                       <td className="hidden sm:table-cell px-3 py-3 text-gray-700 whitespace-nowrap tabular-nums">
                         {formatMoney(doctor.fee)}
                       </td>
-                      <td className="hidden lg:table-cell px-3 py-3 text-gray-600">
-                        {schedule.length === 0 ? (
-                          <span className="text-amber-600 text-[13px]">Not set — cannot be booked</span>
-                        ) : (
-                          schedule.map((s) => (
-                            <p key={s.days} className="text-[13px]">
-                              <span className="font-semibold text-gray-800">{s.days}</span> {s.hours}
-                            </p>
-                          ))
-                        )}
-                      </td>
                       <td className="px-3 py-3">
                         <DoctorStatusBadge active={doctor.isAvailable} />
                       </td>
                       <td className="pl-3 pr-5 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                           <IconAction label="View" onClick={() => navigate(`/doctors/${doctor.id}`)}>
                             <FiEye />
                           </IconAction>
@@ -179,7 +171,7 @@ function Doctors() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-14 text-center">
+                    <td colSpan={6}className="px-4 py-14 text-center">
                       <p className="font-semibold text-gray-700">No matching doctors</p>
                       <p className="text-sm text-gray-400">Try a different name or specialization.</p>
                     </td>

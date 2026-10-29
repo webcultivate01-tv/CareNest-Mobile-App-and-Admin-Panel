@@ -122,7 +122,8 @@ export const bookAppointment = (token, doctorId, scheduledAt, notes) =>
 export const getMyAppointments = (token) => request('/api/user/myappointments', { token });
 
 // My place in today's live queue:
-// [{ appointmentId, doctorName, doctorSpecialty, scheduledAt, queueState, token, ahead, waitMinutes, nowServingToken }]
+// [{ appointmentId, doctorName, doctorSpecialty, scheduledAt, queueState, token, ahead, waitMinutes, nowServingToken,
+//    patientName, queue: [{ token, queueState, scheduledAt, isMe, patientName (only when isMe) }] }]
 export const getMyQueue = (token) => request('/api/user/queue', { token });
 
 // ---- payment (Razorpay) ----

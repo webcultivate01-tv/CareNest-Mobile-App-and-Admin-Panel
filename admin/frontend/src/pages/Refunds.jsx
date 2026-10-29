@@ -280,6 +280,7 @@ function Refunds() {
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
+              <th className="px-4 py-3">No</th>
               <th className="px-4 py-3">Refund ID</th>
               <th className="px-4 py-3">Patient Name</th>
               <th className="px-4 py-3">Patient ID</th>
@@ -296,14 +297,14 @@ function Refunds() {
           <tbody>
             {listLoading && (
               <tr>
-                <td colSpan={11} className="px-4 py-10 text-center">
+                <td colSpan={12} className="px-4 py-10 text-center">
                   <ClipLoader size={28} color="#059669" />
                 </td>
               </tr>
             )}
             {!listLoading && listError && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-red-600">
+                <td colSpan={12} className="px-4 py-8 text-center text-red-600">
                   {listError}{" "}
                   <button onClick={loadList} className="underline ml-1">
                     Retry
@@ -313,15 +314,16 @@ function Refunds() {
             )}
             {!listLoading && !listError && rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={12} className="px-4 py-10 text-center text-gray-400">
                   {hasActiveFilters ? "No refunds match these filters" : "No refunds yet"}
                 </td>
               </tr>
             )}
             {!listLoading &&
               !listError &&
-              rows.map((row) => (
+              rows.map((row, index) => (
                 <tr key={row.eventId} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 tabular-nums text-gray-500">{(page - 1) * pageSize + index + 1}</td>
                   <td className="px-4 py-3">
                     <IdCell value={row.refundId} />
                   </td>

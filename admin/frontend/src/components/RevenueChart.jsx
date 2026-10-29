@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { FiBarChart2 } from "react-icons/fi";
 
 const granularities = [
   { value: "day", label: "Daily" },
@@ -8,7 +9,9 @@ const granularities = [
 
 const money = (n) => `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
-const labelFor = (bucket, granularity) => {
+const formatTick = (v) => (v < 10 ? `₹${v.toFixed(1)}` : money(v));
+
+const labelFor =(bucket, granularity) => {
   const d = new Date(bucket);
   if (granularity === "month") return d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -47,10 +50,18 @@ function RevenueChart({ points, granularity, onGranularityChange, loading }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold text-gray-900">Revenue Overview</h2>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-full">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+            <FiBarChart2 size={20} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-gray-900">Revenue Overview</h2>
+            <p className="text-xs text-gray-500 truncate">Payment collection for the last 30 days</p>
+          </div>
+        </div>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 shrink-0">
           {granularities.map((g) => (
             <button
               key={g.value}
@@ -65,7 +76,7 @@ function RevenueChart({ points, granularity, onGranularityChange, loading }) {
         </div>
       </div>
 
-      <div ref={containerRef} className="relative">
+      <div className="relative">
         {loading ? (
           <div className="h-[160px] flex items-center justify-center text-sm text-gray-400">Loading chart...</div>
         ) : points.length === 0 ? (
@@ -73,10 +84,21 @@ function RevenueChart({ points, granularity, onGranularityChange, loading }) {
             No captured payments in this range yet
           </div>
         ) : (
-          <>
+          <div className="flex gap-2">
+            <div className="flex flex-col justify-between h-[160px] text-[11px] text-gray-400 text-right shrink-0">
+              {[1, 0.8, 0.6, 0.4, 0.2, 0].map((f) => (
+                <span key={f}>{formatTick(max * f)}</span>
+              ))}
+            </div>
+            <div ref={containerRef} className="flex-1 min-w-0 relative">
+            <div className="absolute inset-x-0 top-0 h-[160px] flex flex-col justify-between pointer-events-none">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="border-t border-dashed border-gray-200" />
+              ))}
+            </div>
             <svg
               viewBox={`0 0 ${Math.max(width, points.length * (barWidth + gap))} ${height}`}
-              className="w-full h-[160px]"
+              className="relative w-full h-[160px]"
               preserveAspectRatio="none"
               role="img"
               aria-label="Revenue over time"
@@ -111,7 +133,8 @@ function RevenueChart({ points, granularity, onGranularityChange, loading }) {
                 <div className="text-gray-300">{labelFor(points[hover.index].bucket, granularity)}</div>
               </div>
             )}
-          </>
+            </div>
+          </div>
         )}
       </div>
     </div>

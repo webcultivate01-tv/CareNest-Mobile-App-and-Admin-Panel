@@ -191,7 +191,8 @@ function Admins() {
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-gray-400">
-              <th className="hidden sm:table-cell pl-5 pr-3 py-3 font-semibold">ID</th>
+              <th className="pl-5 pr-3 py-3 font-semibold">No</th>
+              <th className="hidden sm:table-cell px-3 py-3 font-semibold">ID</th>
               <th className="px-3 py-3 font-semibold">Name</th>
               <th className="hidden sm:table-cell px-3 py-3 font-semibold">Mobile</th>
               <th className="hidden md:table-cell px-3 py-3 font-semibold">Email</th>
@@ -210,7 +211,8 @@ function Admins() {
                     admin.isBlocked ? "bg-gray-50/60" : ""
                   }`}
                 >
-                  <td className="hidden sm:table-cell pl-5 pr-1 py-3">
+                  <td className="pl-5 pr-3 py-3 tabular-nums text-gray-500">{index + 1}</td>
+                  <td className="hidden sm:table-cell px-3 py-3">
                     <span className="text-sm font-bold text-emerald-900 tabular-nums whitespace-nowrap">{admin.code || index + 1}</span>
                   </td>
                   <td className="px-3 py-3">
@@ -287,7 +289,7 @@ function Admins() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-16 text-center">
+                <td colSpan={7} className="px-4 py-16 text-center">
                   <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center text-2xl mb-3">
                     <FiUsers />
                   </div>

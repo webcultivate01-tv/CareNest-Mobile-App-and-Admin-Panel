@@ -49,15 +49,15 @@ function Layout() {
   // `module` ties a link to the access the admin grants a sub-admin; Admin Management and Profile are always shown
   const links = [
     { to: "/", label: "Dashboard", icon: <FiGrid />, end: true, module: "dashboard" },
-    { to: "/doctors", label: "Doctor Management", icon: <FaUserMd />, module: "doctors" },
-    { to: "/patients", label: "Patient Management", icon: <FiUsers />, module: "patients" },
     { to: "/appointments", label: "Appointments", icon: <FiCalendar />, module: "appointments" },
     { to: "/queue", label: "Live Queue", icon: <FiActivity />, module: "queue" },
+    { to: "/patients", label: "Patient Management", icon: <FiUsers />, module: "patients" },
+    { to: "/doctors", label: "Doctor Management", icon: <FaUserMd />, module: "doctors" },
     { to: "/payments", label: "Payments Management", icon: <FiCreditCard />, module: "payments" },
     { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw />, module: "refunds" },
-    { to: "/admins", label: "Admin Management", icon: <FiShield /> },
     { to: "/reports", label: "Reports", icon: <FiBarChart2 />, module: "reports" },
     { to: "/marketing", label: "Marketing", icon: <FiSend />, module: "marketing" },
+    { to: "/admins", label: "Admin Management", icon: <FiShield /> },
     { to: "/profile", label: "Profile Management", icon: <FiUser /> },
   ].filter((link) => !link.module || hasModule(adminData, link.module));
 
@@ -133,14 +133,14 @@ function Layout() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
+        <nav className="flex-1 overflow-hidden px-4 py-1 space-y-1">
           {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               end={link.end}
               className={({ isActive }) =>
-                `relative flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-colors ${
+                `relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-[15px] font-medium transition-colors ${
                   isActive
                     ? "bg-emerald-50 text-emerald-700 before:absolute before:-left-4 before:top-1 before:bottom-1 before:w-1 before:rounded-r-full before:bg-emerald-600"
                     : "text-gray-700 hover:bg-gray-50"
@@ -159,7 +159,7 @@ function Layout() {
           ))}
         </nav>
 
-        <div className="px-4 py-5 border-t border-gray-200">
+        <div className="px-4 py-3 border-t border-gray-200">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium text-red-600 hover:bg-red-50"

@@ -351,6 +351,7 @@ function Payments() {
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500">
             <tr>
+              <th className="px-4 py-3">No</th>
               <th className="px-4 py-3">Date & Time</th>
               <th className="px-4 py-3">Transaction ID</th>
               <th className="px-4 py-3">Patient ID</th>
@@ -365,14 +366,14 @@ function Payments() {
           <tbody>
             {listLoading && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center">
+                <td colSpan={10} className="px-4 py-10 text-center">
                   <ClipLoader size={28} color="#059669" />
                 </td>
               </tr>
             )}
             {!listLoading && listError && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-red-600">
+                <td colSpan={10} className="px-4 py-8 text-center text-red-600">
                   {listError}{" "}
                   <button onClick={loadList} className="underline ml-1">
                     Retry
@@ -382,19 +383,20 @@ function Payments() {
             )}
             {!listLoading && !listError && rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={10} className="px-4 py-10 text-center text-gray-400">
                   {hasActiveFilters ? "No transactions match these filters" : "No transactions yet"}
                 </td>
               </tr>
             )}
             {!listLoading &&
               !listError &&
-              rows.map((row) => (
+              rows.map((row, index) => (
                 <tr
                   key={row.id}
                   onClick={() => navigate(`/payments/${row.id}`)}
                   className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer"
                 >
+                  <td className="px-4 py-3 tabular-nums text-gray-500">{(page - 1) * pageSize + index + 1}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{new Date(row.capturedAt || row.createdAt).toLocaleString("en-IN")}</td>
                   <td className="px-4 py-3">
                     <TxnIdCell value={row.providerPaymentId || row.providerOrderId} />
