@@ -114,7 +114,7 @@ function Layout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 flex flex-col transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 flex flex-col overflow-y-auto lg:overflow-visible transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -133,7 +133,7 @@ function Layout() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-hidden px-4 py-1 space-y-1">
+        <nav className="lg:flex-1 lg:overflow-hidden px-4 py-1 space-y-1">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -159,7 +159,7 @@ function Layout() {
           ))}
         </nav>
 
-        <div className="px-4 py-3 border-t border-gray-200">
+        <div className="px-4 py-1 lg:py-3 lg:border-t lg:border-gray-200">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium text-red-600 hover:bg-red-50"

@@ -44,14 +44,19 @@ const isSameDay = (a, b) =>
 function SummaryCard({ icon, label, value, sub, trend, color, loading, to, onOpen }) {
   const trendUp = trend != null && trend >= 0;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex gap-4">
-      <span className={`flex items-center justify-center w-14 h-14 rounded-2xl shrink-0 ${color}`}>{icon}</span>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5 flex gap-2 sm:gap-4 relative active:bg-gray-50 sm:active:bg-white">
+      <button
+        onClick={() => onOpen(to)}
+        className="absolute inset-0 rounded-2xl sm:hidden"
+        aria-label={`Open ${label}`}
+      />
+      <span className={`flex items-center justify-center w-8 h-8 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl shrink-0 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-6 sm:[&>svg]:h-6 ${color}`}>{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-gray-600 truncate">{label}</p>
+          <p className="text-xs sm:text-sm text-gray-600 sm:truncate">{label}</p>
           <button
             onClick={() => onOpen(to)}
-            className="flex items-center justify-center w-7 h-7 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 shrink-0"
+            className="flex items-center justify-center w-7 h-7 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 shrink-0 relative"
             aria-label={`Open ${label}`}
           >
             <FiChevronRight size={14} />
@@ -62,16 +67,16 @@ function SummaryCard({ icon, label, value, sub, trend, color, loading, to, onOpe
             <ClipLoader size={16} color="#9ca3af" />
           </div>
         ) : (
-          <p className="text-3xl font-bold text-gray-900 leading-tight">{value}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{value}</p>
         )}
         {trend != null && !loading && (
-          <p className={`flex items-center gap-1 text-xs font-semibold ${trendUp ? "text-emerald-600" : "text-red-500"}`}>
+          <p className={`hidden sm:flex items-center gap-1 text-xs font-semibold ${trendUp ? "text-emerald-600" : "text-red-500"}`}>
             {trendUp ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
             {trendUp ? "+" : ""}
             {trend.toFixed(1)}%
           </p>
         )}
-        {sub && !loading && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+        {sub && !loading && <p className="hidden sm:block text-xs text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -216,7 +221,7 @@ function Dashboard() {
 
   return (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5 mb-6">
         {cards.map((card) => (
           <SummaryCard key={card.label} {...card} onOpen={navigate} />
         ))}

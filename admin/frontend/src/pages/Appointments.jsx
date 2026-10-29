@@ -151,18 +151,18 @@ function Appointments() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Appointments</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/appointments/slots")}
-            className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm"
+            className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 sm:px-4 py-2 rounded-lg text-sm"
           >
             Slots & limits
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm"
           >
             + New Appointment
           </button>
@@ -177,7 +177,7 @@ function Appointments() {
           placeholder="Search name, email, mobile, date..."
           className="w-full md:w-1/2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
         />
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full md:w-auto items-center md:justify-end gap-2 overflow-x-auto md:flex-wrap md:overflow-visible pb-1 md:pb-0 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
           {["all", ...statuses].map((status) => {
             const count =
               status === "all" ? appointmentData.length : appointmentData.filter((a) => a.status === status).length;

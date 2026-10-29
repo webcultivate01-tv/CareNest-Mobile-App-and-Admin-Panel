@@ -4,7 +4,9 @@ import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
 import {
   FiAlertCircle,
+  FiArrowRight,
   FiCalendar,
+  FiCheck,
   FiCreditCard,
   FiDownload,
   FiFileText,
@@ -140,29 +142,42 @@ function ReportCard({ report, selected, onSelect }) {
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`group flex h-full flex-col items-start gap-3 rounded-2xl border bg-white p-5 text-left transition ${
+      className={`group relative flex h-full flex-col items-start gap-4 overflow-hidden rounded-2xl border bg-white p-5 text-left transition duration-200 ${
         selected
-          ? "border-emerald-500 ring-2 ring-emerald-100 shadow-sm"
-          : "border-gray-200 hover:border-emerald-300 hover:shadow-sm"
+          ? "border-emerald-500 shadow-md ring-4 ring-emerald-50"
+          : "border-gray-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
       }`}
     >
       <span
-        className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${
-          CARD_ACCENTS[report.key] || "bg-gray-50 text-gray-600"
+        className={`absolute inset-x-0 top-0 h-1 transition ${
+          selected ? "bg-emerald-500" : "bg-transparent group-hover:bg-emerald-200"
         }`}
-      >
-        {CARD_ICONS[report.key] || <FiFileText />}
-      </span>
-      <div>
-        <p className="text-[15px] font-bold text-gray-900">{report.title}</p>
-        <p className="mt-1 text-sm leading-snug text-gray-500">{report.description}</p>
+      />
+      <div className="flex w-full items-start justify-between">
+        <span
+          className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl ${
+            CARD_ACCENTS[report.key] || "bg-gray-50 text-gray-600"
+          }`}
+        >
+          {CARD_ICONS[report.key] || <FiFileText />}
+        </span>
+        {selected && (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <FiCheck size={14} />
+          </span>
+        )}
+      </div>
+      <div className="flex-1">
+        <p className="text-base font-bold text-gray-900">{report.title}</p>
+        <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-gray-500">{report.description}</p>
       </div>
       <span
-        className={`mt-auto inline-flex items-center gap-1.5 pt-2 text-xs font-semibold ${
-          selected ? "text-emerald-700" : "text-gray-400 group-hover:text-emerald-600"
+        className={`flex w-full items-center justify-between border-t border-gray-100 pt-3 text-xs font-semibold ${
+          selected ? "text-emerald-700" : "text-gray-500 group-hover:text-emerald-600"
         }`}
       >
-        <FiFilter size={12} /> {selected ? "Selected" : "Set filters & generate"}
+        {selected ? "Selected" : "Set filters & generate"}
+        <FiArrowRight size={14} className="transition group-hover:translate-x-0.5" />
       </span>
     </button>
   );
@@ -341,7 +356,7 @@ function Reports() {
         </p>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {reports.map((item) => (
           <ReportCard
             key={item.key}
@@ -587,11 +602,11 @@ function Reports() {
             </div>
 
             {preview?.summary?.length > 0 && (
-              <div className="grid grid-cols-2 gap-px border-b border-gray-100 bg-gray-100 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="grid grid-cols-2 gap-3 border-b border-gray-100 bg-gray-50/60 p-4 sm:grid-cols-3 lg:grid-cols-6">
                 {preview.summary.map((stat) => (
-                  <div key={stat.label} className="bg-white px-4 py-3">
-                    <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase">{stat.label}</p>
-                    <p className="mt-0.5 text-lg font-bold text-gray-900">{summaryValue(stat)}</p>
+                  <div key={stat.label} className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <p className="truncate text-[11px] font-semibold tracking-wide text-gray-500 uppercase">{stat.label}</p>
+                    <p className="mt-1 truncate text-xl font-bold text-emerald-700">{summaryValue(stat)}</p>
                   </div>
                 ))}
               </div>
