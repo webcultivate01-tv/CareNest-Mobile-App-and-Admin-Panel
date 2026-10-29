@@ -46,7 +46,7 @@ export const createPatientTable = async () => {
 };
 
 export const findPatients = async () => {
-  const { rows } = await query(`SELECT ${publicColumns} FROM patients ORDER BY "createdAt" DESC`);
+  const { rows } = await query(`SELECT ${publicColumns} FROM patients ORDER BY "createdAt" ASC, id ASC`);
   return rows;
 };
 
