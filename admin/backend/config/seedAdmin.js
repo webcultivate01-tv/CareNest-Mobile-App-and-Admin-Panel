@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { pool } from "./database.js";
-import { createAdminTable, ensurePrimaryAdmin, upsertAdmin } from "../model/adminModel.js";
+import { createAdminTable, ensurePrimaryAdmin, upsertAdmin, upsertStaff } from "../model/adminModel.js";
+import { STAFF_MODULES } from "./modules.js";
 
 dotenv.config();
 
@@ -25,6 +26,11 @@ const seedAdmin = async () => {
       await upsertAdmin(`Subadmin ${i}`, subEmail, subadminHash, subPhone);
       console.log(`Subadmin seeded: ${subEmail} (${subPhone})`);
     }
+
+    // demo staff member (front-desk access only)
+    const staffHash = await bcrypt.hash("staff123", 10);
+    await upsertStaff("Staff", "staff@gmail.com", staffHash, "+91 98765 43300", STAFF_MODULES);
+    console.log("Staff seeded: staff@gmail.com");
   } catch (error) {
     console.log(`Seed admin error ${error.message}`);
     process.exitCode = 1;

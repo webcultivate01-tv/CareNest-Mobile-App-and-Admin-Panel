@@ -15,7 +15,7 @@ const inputClass =
 const iconClass =
   "absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-gray-400 transition-colors duration-200 group-focus-within:text-emerald-500";
 
-function Login() {
+function Login({ employee = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +29,7 @@ function Login() {
     try {
       const result = await axios.post(
         serverUrl + "/api/auth/login",
-        { email, password },
+        { email, password, portal: employee ? "employee" : undefined },
         { withCredentials: true }
       );
       dispatch(setAdminData(result.data));
@@ -82,13 +82,15 @@ function Login() {
               </h1>
               <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Hospital Admin Portal
+                {employee ? "Hospital Staff Portal" : "Hospital Admin Portal"}
               </span>
             </div>
 
             <div className="animate-fade-up mt-4 text-center [animation-delay:120ms]">
-              <h2 className="text-lg font-semibold text-gray-800">Welcome back</h2>
-              <p className="mt-1 text-sm text-gray-500">Sign in to manage your hospital</p>
+              <h2 className="text-lg font-semibold text-gray-800">{employee ? "Employee sign in" : "Welcome back"}</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {employee ? "Sign in to open your staff panel" : "Sign in to manage your hospital"}
+              </p>
             </div>
 
             {/* Fields */}
@@ -104,7 +106,7 @@ function Login() {
                     type="email"
                     required
                     autoComplete="email"
-                    placeholder="admin@carenest.com"
+                    placeholder={employee ? "staff@carenest.com" : "admin@carenest.com"}
                     className={`${inputClass} pr-4`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

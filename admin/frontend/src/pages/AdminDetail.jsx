@@ -26,7 +26,7 @@ import {
 } from "react-icons/fi";
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
-import { MODULES } from "../modules";
+import { MODULES, roleLabel } from "../modules";
 import {
   AdminActionDialog,
   Avatar,
@@ -304,7 +304,7 @@ function AdminDetail() {
             <dl className="space-y-3.5 text-sm">
               {[
                 { icon: <FiHash />, label: "Account ID", value: admin.code || `#${String(admin.id).padStart(4, "0")}` },
-                { icon: <FiShield />, label: "Role", value: isSub ? "Sub-admin" : "Admin" },
+                { icon: <FiShield />, label: "Role", value: roleLabel(admin.role) },
                 { icon: <FiCalendar />, label: "Member since", value: formatDate(admin.createdAt) },
                 { icon: <FiClock />, label: "Last updated", value: formatDateTime(admin.updatedAt) },
               ].map((item) => (

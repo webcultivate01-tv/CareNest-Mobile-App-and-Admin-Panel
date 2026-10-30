@@ -14,6 +14,10 @@ export const MODULES = [
 
 export const DEFAULT_MODULES = ["dashboard", "doctors", "patients", "appointments", "reports"];
 
+export const STAFF_MODULES = ["dashboard", "patients", "appointments", "queue"];
+
+export const roleLabel = (role) => (role === "admin" ? "Admin" : role === "staff" ? "Staff" : "Sub-admin");
+
 export const hasModule = (admin, key) =>
   admin?.role === "admin" || Boolean(admin?.permissions?.includes(key));
 

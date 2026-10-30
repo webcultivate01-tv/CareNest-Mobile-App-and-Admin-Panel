@@ -14,12 +14,12 @@ import {
   updateAdminPermissions,
 } from "../model/adminModel.js";
 import { movePhoto, removePhotoFile, savePhoto } from "../config/photos.js";
-import { DEFAULT_MODULES, cleanModules } from "../config/modules.js";
+import { DEFAULT_MODULES, STAFF_MODULES, cleanModules } from "../config/modules.js";
 
 const isValidPhone = (phone) => !phone || /^\+?[0-9\s-]{7,15}$/.test(phone.trim());
 
 // photos live in admin/uploads/admins/<name>/ or admin/uploads/subadmins/<name>/
-const photoGroup = (admin) => (admin.role === "admin" ? "admins" : "subadmins");
+const photoGroup = (admin) => (admin.role === "admin" ? "admins" : admin.role === "staff" ? "staff" : "subadmins");
 
 // after a name change, move the photo into the folder for the new name
 const keepPhotoWithName = async (admin) => {
@@ -38,7 +38,11 @@ export const getAdmins = async (req, res) => {
 
 export const createAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, permissions } = req.body;
+    const { name, email, password, phone, permissions, role } = req.body;
+    if (role !== undefined && role !== "subadmin" && role !== "staff") {
+      return res.status(400).json({ message: "Role must be subadmin or staff" });
+    }
+    const isStaff = role === "staff";
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
     }
@@ -59,9 +63,12 @@ export const createAdmin = async (req, res) => {
     }
 
     const hashPassword = await bcrypt.hash(password, 10);
-    const modules = permissions === undefined ? DEFAULT_MODULES : cleanModules(permissions);
-    const admin = await insertAdmin(name.trim(), cleanEmail, hashPassword, phone?.trim(), modules);
-    return res.status(201).json({ message: "Sub-admin created successfully", admin });
+    const modules =
+      permissions === undefined ? (isStaff ? STAFF_MODULES : DEFAULT_MODULES) : cleanModules(permissions);
+    const admin = await insertAdmin(
+      name.trim(), cleanEmail, hashPassword, phone?.trim(), modules, isStaff ? "staff" : "subadmin"
+    );
+    return res.status(201).json({ message: `${isStaff ? "Staff" : "Sub-admin"} created successfully`, admin });
   } catch (error) {
     return res.status(500).json({ message: `CreateAdmin error ${error.message}` });
   }

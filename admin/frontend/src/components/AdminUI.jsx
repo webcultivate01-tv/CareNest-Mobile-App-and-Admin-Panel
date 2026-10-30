@@ -8,7 +8,7 @@ import { FiCopy, FiEye, FiEyeOff, FiKey, FiLock, FiRefreshCw, FiShield, FiSlash,
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
 import { setAdminData, setAdminListData } from "../redux/adminSlice";
-import { MODULES } from "../modules";
+import { MODULES, roleLabel } from "../modules";
 
 // Shared building blocks for the Admin Management list and detail pages.
 
@@ -102,7 +102,7 @@ export function RoleBadge({ role }) {
     </span>
   ) : (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 text-xs font-semibold">
-      <FiShield className="text-[11px]" /> Sub-admin
+      <FiShield className="text-[11px]" /> {roleLabel(role)}
     </span>
   );
 }

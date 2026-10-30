@@ -22,7 +22,7 @@ import {
 import { FaCrown } from "react-icons/fa";
 import { serverUrl } from "../App";
 import { setAdminListData } from "../redux/adminSlice";
-import { DEFAULT_MODULES } from "../modules";
+import { DEFAULT_MODULES, STAFF_MODULES, roleLabel } from "../modules";
 import {
   AdminActionDialog,
   Avatar,
@@ -44,9 +44,10 @@ const ROLE_TABS = [
   { key: "all", label: "All Members" },
   { key: "admin", label: "Admin" },
   { key: "subadmin", label: "Sub-admins" },
+  { key: "staff", label: "Staff" },
 ];
 
-const emptyCreateForm = { name: "", phone: "", email: "", password: "", permissions: DEFAULT_MODULES };
+const emptyCreateForm = { name: "", phone: "", email: "", password: "", role: "subadmin", permissions: DEFAULT_MODULES };
 
 function Admins() {
   const dispatch = useDispatch();
@@ -69,7 +70,8 @@ function Admins() {
     () => ({
       all: adminListData.length,
       admin: adminListData.filter((a) => a.role === "admin").length,
-      subadmin: adminListData.filter((a) => a.role !== "admin").length,
+      subadmin: adminListData.filter((a) => a.role === "subadmin").length,
+      staff: adminListData.filter((a) => a.role === "staff").length,
       blocked: adminListData.filter((a) => a.isBlocked).length,
     }),
     [adminListData]
@@ -78,8 +80,7 @@ function Admins() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return adminListData.filter((a) => {
-      if (tab === "admin" && a.role !== "admin") return false;
-      if (tab === "subadmin" && a.role === "admin") return false;
+      if (tab !== "all" && a.role !== tab) return false;
       return (
         !term ||
         a.name.toLowerCase().includes(term) ||
@@ -97,7 +98,7 @@ function Admins() {
       dispatch(setAdminListData([...adminListData, result.data.admin]));
       setShowCreate(false);
       setCreateForm(emptyCreateForm);
-      showSuccess("Sub-admin Created Successfully");
+      showSuccess(`${roleLabel(createForm.role)} Created Successfully`);
     } catch (error) {
       showError(error);
     } finally {
@@ -109,6 +110,7 @@ function Admins() {
     { label: "Total Members", value: counts.all, icon: <FiUsers /> },
     { label: "Admin", value: counts.admin, icon: <FaCrown /> },
     { label: "Sub-admins", value: counts.subadmin, icon: <FiShield /> },
+    { label: "Staff", value: counts.staff, icon: <FiUser /> },
     { label: "Blocked", value: counts.blocked, icon: <FiSlash /> },
   ];
 
@@ -132,13 +134,13 @@ function Admins() {
             }}
             className={`${primaryButton} shrink-0`}
           >
-            <FiPlus className="text-base" /> Add Sub-admin
+            <FiPlus className="text-base" /> Add Member
           </button>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0">
@@ -313,8 +315,8 @@ function Admins() {
       {/* Add sub-admin */}
       {showCreate && (
         <Dialog
-          title="Add Sub-admin"
-          subtitle="Only one admin is allowed. New members join as sub-admins."
+          title="Add Member"
+          subtitle="Only one admin is allowed. New members join as sub-admins or staff."
           icon={<FiUserCheck />}
           onClose={() => setShowCreate(false)}
         >
@@ -380,15 +382,29 @@ function Admins() {
               value={createForm.permissions}
               onChange={(permissions) => setCreateForm({ ...createForm, permissions })}
             />
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs">
-              <FiShield className="shrink-0" /> Role will be set to <b>Sub-admin</b>.
+            <div className="inline-flex p-1 rounded-xl bg-gray-100/80">
+              {[
+                { key: "subadmin", modules: DEFAULT_MODULES },
+                { key: "staff", modules: STAFF_MODULES },
+              ].map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  onClick={() => setCreateForm({ ...createForm, role: r.key, permissions: r.modules })}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    createForm.role === r.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  {roleLabel(r.key)}
+                </button>
+              ))}
             </div>
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={() => setShowCreate(false)} className={`${secondaryButton} flex-1`}>
                 Cancel
               </button>
               <button type="submit" disabled={loading} className={`${primaryButton} flex-1`}>
-                {loading ? <ClipLoader size={18} color="white" /> : "Create Sub-admin"}
+                {loading ? <ClipLoader size={18} color="white" /> : `Create ${roleLabel(createForm.role)}`}
               </button>
             </div>
           </form>

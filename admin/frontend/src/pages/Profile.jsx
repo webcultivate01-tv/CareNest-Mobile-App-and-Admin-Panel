@@ -6,6 +6,7 @@ import { ClipLoader } from "react-spinners";
 import { serverUrl } from "../App";
 import { setAdminData, setAdminListData } from "../redux/adminSlice";
 import Avatar from "../components/Avatar";
+import { roleLabel } from "../modules";
 
 function Profile() {
   const dispatch = useDispatch();
@@ -110,7 +111,7 @@ function Profile() {
           <p className="text-lg font-semibold">{adminData?.name}</p>
           <p className="text-gray-500 text-sm">{adminData?.email}</p>
           <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold tracking-wide">
-            {adminData?.role === "admin" ? "ADMIN" : "SUB-ADMIN"}
+            {roleLabel(adminData?.role).toUpperCase()}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">

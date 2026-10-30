@@ -19,6 +19,7 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import { serverUrl } from "../App";
+import { hasModule } from "../modules";
 import RevenueChart from "../components/RevenueChart";
 import PaymentStatusBadge from "../components/PaymentStatusBadge";
 
@@ -85,6 +86,8 @@ function SummaryCard({ icon, label, value, sub, trend, color, loading, to, onOpe
 function Dashboard() {
   const { statsData } = useSelector((state) => state.dashboard);
   const { appointmentData } = useSelector((state) => state.appointment);
+  const { adminData } = useSelector((state) => state.admin);
+  const canSeePayments = hasModule(adminData, "payments");
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
@@ -100,6 +103,10 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (!canSeePayments) {
+      setSummaryLoading(false);
+      return;
+    }
     const loadSummary = async () => {
       setSummaryLoading(true);
       try {
@@ -112,9 +119,13 @@ function Dashboard() {
       }
     };
     loadSummary();
-  }, [range]);
+  }, [range, canSeePayments]);
 
   useEffect(() => {
+    if (!canSeePayments) {
+      setChartLoading(false);
+      return;
+    }
     const loadChart = async () => {
       setChartLoading(true);
       try {
@@ -130,7 +141,7 @@ function Dashboard() {
       }
     };
     loadChart();
-  }, [range, granularity]);
+  }, [range, granularity, canSeePayments]);
 
   const statusCounts = statuses.map((status) => ({
     status,
@@ -217,7 +228,7 @@ function Dashboard() {
       loading: summaryLoading,
       to: "/refunds",
     },
-  ];
+  ].filter((card) => !(!canSeePayments && (card.to === "/payments" || card.to === "/refunds")));
 
   return (
     <div>
@@ -228,11 +239,17 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <div className="xl:col-span-2">
-          <RevenueChart points={chartPoints} granularity={granularity} onGranularityChange={setGranularity} loading={chartLoading} />
-        </div>
+        {canSeePayments && (
+          <div className="xl:col-span-2">
+            <RevenueChart points={chartPoints} granularity={granularity} onGranularityChange={setGranularity} loading={chartLoading} />
+          </div>
+        )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
+        <div
+          className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col ${
+            !canSeePayments ? "xl:col-span-3" : ""
+          }`}
+        >
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3 min-w-0">
               <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">

@@ -5,7 +5,7 @@ import { findAdminByEmail, findAdminById } from "../model/adminModel.js";
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, portal } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
@@ -24,6 +24,14 @@ export const login = async (req, res) => {
     }
     if (admin.isBlocked) {
       return res.status(403).json({ message: "Your account has been blocked. Contact the admin." });
+    }
+
+    // staff sign in at /employee, everyone else at /login
+    if (portal === "employee" && admin.role !== "staff") {
+      return res.status(403).json({ message: "This login is for staff only. Use the admin login." });
+    }
+    if (portal !== "employee" && admin.role === "staff") {
+      return res.status(403).json({ message: "Staff must sign in from the employee login page." });
     }
 
     const token = genToken(admin.id);

@@ -66,6 +66,7 @@ function App() {
       <ToastContainer />
       <Routes>
         <Route path="/login" element={!adminData ? <Login /> : <Navigate to={"/"} />} />
+        <Route path="/employee" element={!adminData ? <Login employee /> : <Navigate to={"/"} />} />
         <Route element={adminData ? <Layout /> : <Navigate to={"/login"} />}>
           <Route path="/" element={<Guard module="dashboard"><Dashboard /></Guard>} />
           <Route path="/doctors" element={<Guard module="doctors"><Doctors /></Guard>} />
@@ -83,8 +84,8 @@ function App() {
           <Route path="/payments/:paymentId" element={<Guard module="payments"><PaymentDetail /></Guard>} />
           <Route path="/refunds" element={<Guard module="refunds"><Refunds /></Guard>} />
           <Route path="/refunds/new" element={<Guard module="refunds"><IssueRefund /></Guard>} />
-          <Route path="/admins" element={<Admins />} />
-          <Route path="/admins/:adminId" element={<AdminDetail />} />
+          <Route path="/admins" element={adminData?.role === "staff" ? <Navigate to={firstAllowedPath(adminData)} replace /> : <Admins />} />
+          <Route path="/admins/:adminId" element={adminData?.role === "staff" ? <Navigate to={firstAllowedPath(adminData)} replace /> : <AdminDetail />} />
           <Route path="/reports" element={<Guard module="reports"><Reports /></Guard>} />
           <Route path="/marketing" element={<Guard module="marketing"><Marketing /></Guard>} />
           <Route path="/marketing/new" element={<Guard module="marketing"><MarketingCompose /></Guard>} />

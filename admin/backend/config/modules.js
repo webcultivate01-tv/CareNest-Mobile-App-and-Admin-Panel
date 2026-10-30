@@ -5,6 +5,9 @@ export const MODULE_KEYS = ["dashboard", "doctors", "patients", "appointments", 
 // what a sub-admin could use before access was configurable
 export const DEFAULT_MODULES = ["dashboard", "doctors", "patients", "appointments", "reports"];
 
+// front-desk sections a new staff member starts with
+export const STAFF_MODULES = ["dashboard", "patients", "appointments", "queue"];
+
 // keeps only known modules, once each, in panel order
 export const cleanModules = (modules) =>
   Array.isArray(modules) ? MODULE_KEYS.filter((key) => modules.includes(key)) : [];

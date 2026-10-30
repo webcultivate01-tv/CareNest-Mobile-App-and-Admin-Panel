@@ -10,6 +10,7 @@ import {
   FiCalendar,
   FiCreditCard,
   FiGrid,
+  FiHome,
   FiLogOut,
   FiMenu,
   FiRotateCcw,
@@ -25,7 +26,7 @@ import { serverUrl } from "../App";
 import Avatar from "./Avatar";
 import { setAdminData } from "../redux/adminSlice";
 import Logo from "./Logo";
-import { hasModule } from "../modules";
+import { hasModule, roleLabel } from "../modules";
 
 const formatNow = (date) =>
   `${date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${date.toLocaleTimeString(
@@ -45,6 +46,15 @@ function Layout() {
   const searchRef = useRef(null);
 
   const pending = statsData?.pending || 0;
+  const isStaff = adminData?.role === "staff";
+
+  // staff get an app-style bottom tab bar on phones
+  const tabs = [
+    { to: "/", label: "Home", icon: FiHome, end: true, module: "dashboard" },
+    { to: "/appointments", label: "Appointments", icon: FiCalendar, module: "appointments" },
+    { to: "/queue", label: "Live Queue", icon: FiActivity, module: "queue" },
+    { to: "/patients", label: "Patients", icon: FiUsers, module: "patients" },
+  ].filter((tab) => hasModule(adminData, tab.module));
 
   // `module` ties a link to the access the admin grants a sub-admin; Admin Management and Profile are always shown
   const links = [
@@ -57,9 +67,12 @@ function Layout() {
     { to: "/refunds", label: "Refund Management", icon: <FiRotateCcw />, module: "refunds" },
     { to: "/reports", label: "Reports", icon: <FiBarChart2 />, module: "reports" },
     { to: "/marketing", label: "Marketing", icon: <FiSend />, module: "marketing" },
-    { to: "/admins", label: "Admin Management", icon: <FiShield /> },
+    { to: "/admins", label: "Admin Management", icon: <FiShield />, hideForStaff: true },
     { to: "/profile", label: "Profile Management", icon: <FiUser /> },
-  ].filter((link) => !link.module || hasModule(adminData, link.module));
+  ].filter(
+    (link) =>
+      (!link.module || hasModule(adminData, link.module)) && !(link.hideForStaff && adminData?.role === "staff")
+  );
 
   const matches = search.trim()
     ? links.filter((link) => link.label.toLowerCase().includes(search.trim().toLowerCase()))
@@ -95,7 +108,7 @@ function Layout() {
     try {
       await axios.get(serverUrl + "/api/auth/logout", { withCredentials: true });
       dispatch(setAdminData(null));
-      navigate("/login");
+      navigate(adminData?.role === "staff" ? "/employee" : "/login");
       toast.success("Logout Successfully", { position: "top-center", autoClose: 1000 });
     } catch (error) {
       console.log(error);
@@ -122,7 +135,9 @@ function Layout() {
           <Logo size={44} />
           <div className="leading-tight">
             <p className="text-lg font-extrabold tracking-wide text-gray-900">CARENEST</p>
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-gray-500">ADMIN PANEL</p>
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-gray-500">
+              {adminData?.role === "staff" ? "STAFF PANEL" : "ADMIN PANEL"}
+            </p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -170,14 +185,25 @@ function Layout() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-20 h-[88px] bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 flex items-center gap-4">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
-            aria-label="Open menu"
-          >
-            <FiMenu className="text-xl" />
-          </button>
+        <header
+          className={`sticky top-0 z-20 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-10 flex items-center gap-4 lg:h-[88px] ${
+            isStaff ? "h-14" : "h-[88px]"
+          }`}
+        >
+          {isStaff ? (
+            <div className="flex items-center gap-2 lg:hidden">
+              <Logo size={32} />
+              <span className="text-base font-extrabold tracking-wide">CARENEST</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
+              aria-label="Open menu"
+            >
+              <FiMenu className="text-xl" />
+            </button>
+          )}
 
           <div className="hidden md:flex items-center gap-3 text-sm text-gray-600 shrink-0">
             <span className="flex items-center gap-2 font-medium text-gray-700">
@@ -187,7 +213,7 @@ function Layout() {
             <span>{formatNow(now)}</span>
           </div>
 
-          <div className="relative flex-1 max-w-md mx-auto">
+          <div className={`relative flex-1 max-w-md mx-auto ${isStaff ? "hidden lg:block" : ""}`}>
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               ref={searchRef}
@@ -227,7 +253,7 @@ function Layout() {
             )}
           </div>
 
-          <div className="flex items-center gap-4 shrink-0">
+          <div className={`flex items-center gap-4 shrink-0 ${isStaff ? "ml-auto lg:ml-0" : ""}`}>
             {hasModule(adminData, "appointments") && (
               <>
                 <button
@@ -249,16 +275,55 @@ function Layout() {
               <p className="text-[15px] font-semibold text-gray-900">{adminData?.name || "Admin"}</p>
               <p className="text-xs text-gray-500">{adminData?.email}</p>
             </div>
-            <Avatar name={adminData?.name} photo={adminData?.photo} />
+            <button
+              onClick={() => isStaff && setSidebarOpen(true)}
+              className="rounded-full lg:pointer-events-none"
+              aria-label="Account menu"
+            >
+              <Avatar name={adminData?.name} photo={adminData?.photo} />
+            </button>
             <span className="hidden sm:inline-block px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold tracking-wide">
-              {adminData?.role === "admin" ? "ADMIN" : "SUB-ADMIN"}
+              {roleLabel(adminData?.role).toUpperCase()}
             </span>
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-9 overflow-auto">
+        <main
+          className={`flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-9 lg:pb-9 overflow-auto ${isStaff ? "pb-28" : ""}`}
+        >
           <Outlet />
         </main>
+
+        {isStaff && (
+          <nav
+            className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] grid"
+            style={{
+              gridTemplateColumns: `repeat(${tabs.length || 1}, minmax(0, 1fr))`,
+              paddingBottom: "env(safe-area-inset-bottom)",
+            }}
+          >
+            {tabs.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `relative flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${
+                    isActive ? "text-emerald-600" : "text-gray-400"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-b-full bg-emerald-600" />}
+                    <Icon className="text-[22px]" strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="truncate max-w-full px-1">{label}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+        )}
       </div>
     </div>
   );
